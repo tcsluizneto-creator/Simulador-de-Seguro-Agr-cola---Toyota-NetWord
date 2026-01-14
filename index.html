@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <!-- VIEWPORT OTIMIZADO PARA IPHONE -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <title>Simulador de Seguro Agrícola</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* RESET ESPECÍFICO PARA IOS */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-text-size-adjust: 100%;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        :root {
+            --azul-marinho: #1e3a5f;
+            --azul-marinho-claro: #2a4d7c;
+            --cinza-prata: #f8f9fa;
+            --cinza-escuro: #495057;
+            --cinza-medio: #6c757d;
+            --branco: #ffffff;
+            --verde: #2e7d32;
+            --verde-claro: #4caf50;
+            --laranja: #ff9800;
+            --laranja-claro: #ffb74d;
+            --sombra: rgba(30, 58, 95, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--cinza-prata);
+            color: var(--azul-marinho);
+            line-height: 1.5;
+            padding-bottom: 20px;
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+
+        /* HEADER COM SAFE AREA PARA IPHONE X+ */
+        .header {
+            background-color: var(--azul-marinho);
+            color: var(--branco);
+            padding: 20px 0;
+            text-align: center;
+            box-shadow: 0 4px 6px var(--sombra);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding-top: max(20px, env(safe-area-inset-top));
+            padding-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            padding: 0 10px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 70px;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 12px;
+            left: 60%;
+            width: 80%;
+            height: 2px;
+            background-color: var(--cinza-medio);
+            opacity: 0.5;
+            z-index: 1;
+        }
+
+        .step.active:not(:last-child)::after {
+            background-color: var(--azul-marinho);
+            opacity: 0.7;
+        }
+
+        .step-number {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background-color: var(--cinza-medio);
+            color: var(--branco);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            z-index: 2;
+        }
+
+        .step.active .step-number {
+            background-color: var(--azul-marinho);
+        }
+
+        .step-name {
+            font-size: 0.65rem;
+            text-align: center;
+            color: var(--cinza-escuro);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .step.active .step-name {
+            color: var(--azul-marinho);
+            font-weight: 600;
+        }
+
+        .screen {
+            background-color: var(--branco);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px var(--sombra);
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .screen-title {
+            font-size: 1.3rem;
+            color: var(--azul-marinho);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--cinza-prata);
+            display: flex;
+            align-items: center;
+        }
+
+        .screen-title i {
+            margin-right: 10px;
+            color: var(--azul-marinho-claro);
+        }
+
+        /* INPUTS OTIMIZADOS PARA IOS */
+        .input-field {
+            width: 100%;
+            padding: 16px; /* MAIOR PARA MELHOR TOUCH */
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 17px; /* TAMANHO PADRÃO IOS PARA EVITAR ZOOM */
+            color: var(--azul-marinho);
+            transition: border-color 0.3s;
+            -webkit-appearance: none;
+            appearance: none;
+            background-color: white;
+            min-height: 54px; /* ALTURA MÍNIMA PARA FÁCIL TOQUE */
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--azul-marinho-claro);
+        }
+
+        /* CORREÇÃO PARA INPUTS NUMÉRICOS NO IOS */
+        input[type="number"] {
+            -webkit-appearance: none;
+            -moz-appearance: textfield;
+        }
+
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* BOTÕES/LINKS OTIMIZADOS PARA TOQUE - COMPATÍVEL COM IOS */
+        .btn {
+            padding: 18px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 17px;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            text-align: center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 56px;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            text-decoration: none;
+            border: none;
+            background: none;
+        }
+
+        a.btn, button.btn {
+            display: inline-flex;
+        }
+
+        .btn-primary {
+            background-color: var(--azul-marinho);
+            color: var(--branco);
+        }
+
+        .btn-primary:active, .btn-primary:focus {
+            background-color: var(--azul-marinho-claro);
+            opacity: 0.9;
+        }
+
+        .btn-secondary {
+            background-color: var(--cinza-medio);
+            color: var(--branco);
+        }
+
+        .btn-secondary:active, .btn-secondary:focus {
+            background-color: var(--cinza-escuro);
+            opacity: 0.9;
+        }
+
+        .btn-whatsapp {
+            background-color: #25D366;
+            color: white;
+        }
+
+        .btn-whatsapp:active, .btn-whatsapp:focus {
+            background-color: #1da851;
+            opacity: 0.9;
+        }
+
+        /* LAYOUT RESPONSIVO ESPECÍFICO PARA IPHONE */
+        @media only screen and (max-width: 375px) {
+            .header h1 {
+                font-size: 1.3rem;
+            }
+            
+            .screen {
+                padding: 16px;
+            }
+            
+            .input-field {
+                padding: 14px;
+                font-size: 16px;
+            }
+            
+            .btn {
+                padding: 16px;
+                font-size: 16px;
+            }
+            
+            .step-name {
+                font-size: 0.6rem;
+            }
+        }
+
+        @media only screen and (max-width: 320px) {
+            .header h1 {
+                font-size: 1.2rem;
+            }
+            
+            .screen-title {
+                font-size: 1.1rem;
+            }
+            
+            .step {
+                min-width: 60px;
+            }
+        }
+
+        /* IPHONE X+ SAFE AREA */
+        @supports (padding: max(0px)) {
+            .header {
+                padding-top: max(20px, env(safe-area-inset-top));
+                padding-bottom: max(20px, env(safe-area-inset-bottom));
+            }
+            
+            .footer {
+                padding-bottom: max(15px, env(safe-area-inset-bottom));
+            }
+        }
+
+        /* SCROLL SUAVE PARA IOS */
+        * {
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* PREVENIR ZOOM EM INPUTS NO IOS */
+        @media screen and (-webkit-min-device-pixel-ratio:0) {
+            select:focus,
+            textarea:focus,
+            input:focus {
+                font-size: 16px;
+            }
+        }
+
+        /* CORREÇÃO PARA DISPOSITIVOS COM NOTCH */
+        @supports (padding: env(safe-area-inset-top)) {
+            body {
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+            }
+        }
+
+        /* ESTILOS EXISTENTES (MANTIDOS) */
+        .crop-selection {
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .crop-selection-table {
+            width: 100%;
+            border-collapse: collapse;
+            gap: 15px;
+        }
+
+        .crop-selection-table td {
+            padding: 0;
+            vertical-align: top;
+        }
+
+        .crop-option {
+            border: 3px solid var(--cinza-prata);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background-color: var(--branco);
+        }
+
+        .crop-option:active {
+            transform: scale(0.98);
+        }
+
+        .crop-option:hover, .crop-option.selected {
+            border-color: var(--azul-marinho);
+            box-shadow: 0 5px 15px var(--sombra);
+        }
+
+        .crop-option.milho.selected {
+            border-color: var(--verde);
+        }
+
+        .crop-option.soja.selected {
+            border-color: var(--laranja);
+        }
+
+        .crop-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .crop-icon img {
+            width: 100%;
+            max-width: 80px;
+            height: auto;
+            margin-bottom: 10px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .crop-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .crop-details {
+            font-size: 0.85rem;
+            color: var(--cinza-medio);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--azul-marinho);
+            font-size: 1rem;
+        }
+
+        .input-note {
+            font-size: 0.85rem;
+            color: var(--cinza-medio);
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        .dual-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        .dual-input .input-group {
+            flex: 1;
+        }
+
+        .tab-buttons {
+            display: flex;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--azul-marinho-claro);
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 14px 5px;
+            background-color: var(--branco);
+            color: var(--azul-marinho);
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            font-size: 0.9rem;
+            -webkit-tap-highlight-color: transparent;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+
+        .tab-button:active, .tab-button:focus {
+            opacity: 0.8;
+        }
+
+        .tab-button.active {
+            background-color: var(--azul-marinho);
+            color: var(--branco);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .rating-benefit {
+            background-color: rgba(30, 58, 95, 0.08);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid var(--azul-marinho);
+            font-size: 0.9rem;
+        }
+
+        .rating-benefit i {
+            color: var(--azul-marinho);
+            margin-right: 8px;
+        }
+
+        .crop-params {
+            background-color: rgba(46, 125, 50, 0.08);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid var(--verde);
+            font-size: 0.9rem;
+        }
+
+        .crop-params.soja {
+            background-color: rgba(255, 152, 0, 0.08);
+            border-left: 4px solid var(--laranja);
+        }
+
+        .crop-params i {
+            color: var(--verde);
+            margin-right: 8px;
+        }
+
+        .crop-params.soja i {
+            color: var(--laranja);
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            gap: 15px;
+        }
+
+        .result-screen {
+            background-color: var(--branco);
+        }
+
+        .result-section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            color: var(--azul-marinho);
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--azul-marinho-claro);
+            font-weight: 600;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .result-item {
+            background-color: var(--cinza-prata);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .result-label {
+            font-size: 0.9rem;
+            color: var(--cinza-escuro);
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .result-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--azul-marinho);
+            display: block;
+        }
+
+        .result-total {
+            background-color: rgba(46, 125, 50, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            border-left: 4px solid var(--verde);
+        }
+
+        .result-screen.soja .result-total {
+            background-color: rgba(255, 152, 0, 0.1);
+            border-left: 4px solid var(--laranja);
+        }
+
+        .result-total .result-label {
+            font-size: 1rem;
+            color: var(--verde);
+            font-weight: 600;
+        }
+
+        .result-screen.soja .result-total .result-label {
+            color: var(--laranja);
+        }
+
+        .result-total .result-value {
+            font-size: 1.4rem;
+            color: var(--verde);
+            margin-top: 5px;
+        }
+
+        .result-screen.soja .result-total .result-value {
+            color: var(--laranja);
+        }
+
+        .benefit-box {
+            background-color: rgba(30, 58, 95, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid var(--azul-marinho);
+        }
+
+        .benefit-title {
+            font-weight: 600;
+            color: var(--azul-marinho);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .benefit-title i {
+            margin-right: 8px;
+            color: var(--azul-marinho-claro);
+        }
+
+        .benefit-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .benefit-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .conversion-info {
+            background-color: rgba(30, 58, 95, 0.05);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: var(--azul-marinho-claro);
+            text-align: center;
+        }
+
+        .legal-notice {
+            font-size: 0.75rem;
+            color: var(--cinza-medio);
+            text-align: center;
+            font-style: italic;
+            margin-top: 20px;
+            padding: 10px;
+            border-top: 1px solid var(--cinza-prata);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: var(--cinza-medio);
+            font-size: 0.85rem;
+            padding-top: 15px;
+            border-top: 1px solid rgba(0,0,0,0.1);
+            padding-bottom: max(15px, env(safe-area-inset-bottom));
+        }
+
+        .whatsapp-info {
+            background-color: rgba(37, 211, 102, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            border-left: 4px solid #25D366;
+        }
+
+        .whatsapp-number {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--azul-marinho);
+            margin: 10px 0;
+        }
+
+        /* RESPONSIVIDADE PARA TELAS PEQUENAS */
+        @media (max-width: 480px) {
+            .dual-input {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .result-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .buttons {
+                flex-direction: column;
+            }
+            
+            .crop-selection-table td {
+                display: block;
+                width: 100% !important;
+                margin-bottom: 15px;
+            }
+            
+            .tab-button {
+                padding: 12px 5px;
+                font-size: 0.85rem;
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1><i class="fas fa-tractor"></i> Simulador de Seguro Agrícola</h1>
+            <p>Milho Safrinha e Soja - Faça sua simulação passo a passo</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="step-indicator">
+            <div class="step active" data-step="1">
+                <div class="step-number">1</div>
+                <div class="step-name">Dados Pessoais</div>
+            </div>
+            <div class="step" data-step="2">
+                <div class="step-number">2</div>
+                <div class="step-name">Cultura</div>
+            </div>
+            <div class="step" data-step="3">
+                <div class="step-number">3</div>
+                <div class="step-name">Produção</div>
+            </div>
+            <div class="step" data-step="4">
+                <div class="step-number">4</div>
+                <div class="step-name">Área</div>
+            </div>
+            <div class="step" data-step="5">
+                <div class="step-number">5</div>
+                <div class="step-name">Custo</div>
+            </div>
+            <div class="step" data-step="6">
+                <div class="step-number">6</div>
+                <div class="step-name">Resultado</div>
+            </div>
+        </div>
+
+        <!-- Telas mantidas exatamente como antes -->
+        <!-- Tela 1: Dados Pessoais -->
+        <div id="screen1" class="screen active">
+            <div class="screen-title">
+                <i class="fas fa-user"></i> Dados Pessoais
+            </div>
+            
+            <div class="input-group">
+                <label for="nomeCompleto" class="input-label">Nome Completo</label>
+                <input type="text" id="nomeCompleto" class="input-field" placeholder="Seu nome completo">
+            </div>
+            
+            <div class="input-group">
+                <label for="cidade" class="input-label">Cidade do Plantio</label>
+                <input type="text" id="cidade" class="input-field" placeholder="Cidade onde fica a lavoura">
+            </div>
+            
+            <div class="buttons">
+                <a href="javascript:void(0);" class="btn btn-primary" onclick="nextScreen(); return false;">Próximo <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+
+        <!-- Tela 2: Seleção da Cultura -->
+        <div id="screen2" class="screen">
+            <div class="screen-title">
+                <i class="fas fa-seedling"></i> Selecione a Cultura
+            </div>
+            
+            <div class="crop-selection">
+                <table class="crop-selection-table" style="width: 100%; border-spacing: 15px;">
+                    <tr>
+                        <td style="width: 50%; padding-right: 7px;">
+                            <div class="crop-option milho" onclick="selectCrop('milho')">
+                                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ1IiBmaWxsPSIjRThGNUU5Ii8+CjxwYXRoIGQ9Ik01MCAxNSBDNDIgMjAgNDAgMzAgNDAgNDAgQzQwIDQ1IDQyIDQ4IDQ1IDUwIEw0NSA3MCBDNDUgNzIgNDYgNzMgNDggNzMgTDUyIDczIEM1NCA3MyA1NSA3MiA1NSA3MCBMNTUgNTAgQzU4IDQ4IDYwIDQ1IDYwIDQwIEM2MCAzMCA1OCAyMCA1MCAxNSBaIiBmaWxsPSIjOEJCMzJGIi8+Cjwvc3ZnPg==" alt="Milho Safrinha" style="width: 100%; max-width: 80px; height: auto; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto;">
+                                <div class="crop-name">Milho Safrinha</div>
+                                <div class="crop-details">
+                                    Média IBGE: 90 sacas/ha<br>
+                                    Taxa: 14%<br>
+                                    Sugestão: 70-110 sacas/ha
+                                </div>
+                            </div>
+                        </td>
+                        <td style="width: 50%; padding-left: 7px;">
+                            <div class="crop-option soja" onclick="selectCrop('soja')">
+                                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ1IiBmaWxsPSIjRkZGM0UwIi8+Cjxwb2x5Z29uIHBvaW50cz0iNTAsNjAgNTUsNzUgNDUsNzUiIGZpbGw9IiNGRjk4MDAiLz4KPGNpcmNsZSBjeD0iNDUiIGN5PSI0MCIgcj0iOCIgZmlsbD0iI0ZGOTgwMCIvPgo8Y2lyY2xlIGN4PSI1MCIgY3k9IjMwIiByPSI5IiBmaWxsPSIjRkY5ODAwIi8+CjxjaXJjbGUgY3g9IjU1IiBjeT0iNDAiIHI9IjgiIGZpbGw9IiNGRjk4MDAiLz4KPC9zdmc+" alt="Soja" style="width: 100%; max-width: 80px; height: auto; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto;">
+                                <div class="crop-name">Soja</div>
+                                <div class="crop-details">
+                                    Média IBGE: 54 sacas/ha<br>
+                                    Taxa: 7,56%<br>
+                                    Sugestão: 50-80 sacas/ha
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="buttons">
+                <a href="javascript:void(0);" class="btn btn-secondary" onclick="prevScreen(); return false;"><i class="fas fa-arrow-left"></i> Voltar</a>
+                <a href="javascript:void(0);" class="btn btn-primary" onclick="nextScreen(); return false;">Próximo <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+
+        <!-- Tela 3: Produção -->
+        <div id="screen3" class="screen">
+            <div class="screen-title">
+                <i class="fas fa-chart-bar"></i> Produção Estimada
+            </div>
+            
+            <div class="crop-params" id="cropParams">
+                <!-- Conteúdo dinâmico -->
+            </div>
+            
+            <div class="tab-buttons">
+                <a href="javascript:void(0);" class="tab-button active" data-tab="produtividade" data-unit="ha" onclick="switchTab(event, 'produtividade', 'ha'); return false;">Por Hectare</a>
+                <a href="javascript:void(0);" class="tab-button" data-tab="produtividade" data-unit="alq" onclick="switchTab(event, 'produtividade', 'alq'); return false;">Por Alqueire</a>
+            </div>
+            
+            <div id="produtividade-ha" class="tab-content active">
+                <div class="input-group">
+                    <label for="produtividadeHa" class="input-label">Produtividade Estimada (sacas/hectare)</label>
+                    <input type="number" id="produtividadeHa" class="input-field" placeholder="Ex: 90" min="0" step="1" inputmode="decimal">
+                    <div class="input-note">Número de sacas que você espera colher por hectare</div>
+                </div>
+            </div>
+            
+            <div id="produtividade-alq" class="tab-content">
+                <div class="input-group">
+                    <label for="produtividadeAlq" class="input-label">Produtividade Estimada (sacas/alqueire)</label>
+                    <input type="number" id="produtividadeAlq" class="input-field" placeholder="Ex: 218" min="0" step="1" inputmode="decimal">
+                    <div class="input-note">Número de sacas que você espera colher por alqueire</div>
+                </div>
+            </div>
+            
+            <div class="rating-benefit">
+                <i class="fas fa-info-circle"></i> <strong>Benefício do Rating 65:</strong> Você tem direito a até 15% acima da média IBGE. Se sua produtividade for maior que o teto, usaremos o valor do teto.
+            </div>
+            
+            <div class="buttons">
+                <a href="javascript:void(0);" class="btn btn-secondary" onclick="prevScreen(); return false;"><i class="fas fa-arrow-left"></i> Voltar</a>
+                <a href="javascript:void(0);" class="btn btn-primary" onclick="nextScreen(); return false;">Próximo <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+
+        <!-- Tela 4: Área de Plantio -->
+        <div id="screen4" class="screen">
+            <div class="screen-title">
+                <i class="fas fa-ruler-combined"></i> Área de Plantio
+            </div>
+            
+            <div class="dual-input">
+                <div class="input-group">
+                    <label for="areaAlqueires" class="input-label">Área em Alqueires</label>
+                    <input type="number" id="areaAlqueires" class="input-field" placeholder="Ex: 50" min="0" step="0.1" inputmode="decimal">
+                </div>
+                
+                <div class="input-group">
+                    <label for="areaHectares" class="input-label">Área em Hectares</label>
+                    <input type="number" id="areaHectares" class="input-field" placeholder="Ex: 121" min="0" step="0.1" inputmode="decimal">
+                </div>
+            </div>
+            
+            <div class="conversion-info">
+                <i class="fas fa-info-circle"></i> 1 alqueire = 2,42 hectares
+            </div>
+            
+            <div class="buttons">
+                <a href="javascript:void(0);" class="btn btn-secondary" onclick="prevScreen(); return false;"><i class="fas fa-arrow-left"></i> Voltar</a>
+                <a href="javascript:void(0);" class="btn btn-primary" onclick="nextScreen(); return false;">Próximo <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+
+        <!-- Tela 5: Custo e Valor -->
+        <div id="screen5" class="screen">
+            <div class="screen-title">
+                <i class="fas fa-money-bill-wave"></i> Custo e Valor
+            </div>
+            
+            <div class="tab-buttons">
+                <a href="javascript:void(0);" class="tab-button active" data-tab="custo" data-unit="ha" onclick="switchTab(event, 'custo', 'ha'); return false;">Por Hectare</a>
+                <a href="javascript:void(0);" class="tab-button" data-tab="custo" data-unit="alq" onclick="switchTab(event, 'custo', 'alq'); return false;">Por Alqueire</a>
+            </div>
+            
+            <div id="custo-ha" class="tab-content active">
+                <div class="input-group">
+                    <label for="custoHa" class="input-label">Custo de Produção (R$/hectare)</label>
+                    <input type="number" id="custoHa" class="input-field" placeholder="Ex: 2500" min="0" step="100" inputmode="decimal">
+                    <div class="input-note">Valor total gasto para produzir 1 hectare</div>
+                </div>
+            </div>
+            
+            <div id="custo-alq" class="tab-content">
+                <div class="input-group">
+                    <label for="custoAlq" class="input-label">Custo de Produção (R$/alqueire)</label>
+                    <input type="number" id="custoAlq" class="input-field" placeholder="Ex: 6050" min="0" step="100" inputmode="decimal">
+                    <div class="input-note">Valor total gasto para produzir 1 alqueire</div>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label for="valorSaca" class="input-label">Valor da Saca (R$)</label>
+                <input type="number" id="valorSaca" class="input-field" placeholder="Ex: 70" min="0" step="1" inputmode="decimal">
+                <div class="input-note">Preço de venda estimado por saca</div>
+            </div>
+            
+            <div class="buttons">
+                <a href="javascript:void(0);" class="btn btn-secondary" onclick="prevScreen(); return false;"><i class="fas fa-arrow-left"></i> Voltar</a>
+                <a href="javascript:void(0);" class="btn btn-primary" onclick="nextScreen(); return false;">Calcular <i class="fas fa-calculator"></i></a>
+            </div>
+        </div>
+
+        <!-- Tela 6: Resultados -->
+        <div id="screen6" class="screen result-screen">
+            <div class="screen-title">
+                <i class="fas fa-chart-line"></i> Resultado da Simulação
+            </div>
+            
+            <div class="benefit-box">
+                <div class="benefit-title">
+                    <i class="fas fa-award"></i> Benefícios do Seu Rating 65
+                </div>
+                <div class="benefit-item">
+                    <span>Desconto na taxa:</span>
+                    <span>25%</span>
+                </div>
+                <div class="benefit-item">
+                    <span>Produtividade base aumentada:</span>
+                    <span id="benefit-produtividade">15%</span>
+                </div>
+                <div class="benefit-item">
+                    <span>Nível de cobertura:</span>
+                    <span>65% da produção</span>
+                </div>
+            </div>
+            
+            <!-- 1. Sacas Seguradas -->
+            <div class="result-section">
+                <div class="section-title">Sacas Seguradas</div>
+                <div class="result-grid">
+                    <div class="result-item">
+                        <span class="result-label">Por Alqueire</span>
+                        <span class="result-value" id="res-sacas-alq">0</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Por Hectare</span>
+                        <span class="result-value" id="res-sacas-ha">0</span>
+                    </div>
+                </div>
+                <div class="result-total">
+                    <span class="result-label">Total de Sacas Seguradas</span>
+                    <span class="result-value" id="res-sacas-total">0 sacas</span>
+                </div>
+            </div>
+            
+            <!-- 2. Prêmio Líquido -->
+            <div class="result-section">
+                <div class="section-title">Prêmio Líquido do Seguro</div>
+                <div class="result-total">
+                    <span class="result-label">Prêmio Líquido Total</span>
+                    <span class="result-value" id="res-premio-total">R$ 0,00</span>
+                </div>
+                <div class="result-grid">
+                    <div class="result-item">
+                        <span class="result-label">Por Alqueire</span>
+                        <span class="result-value" id="res-premio-alq">R$ 0,00</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Por Hectare</span>
+                        <span class="result-value" id="res-premio-ha">R$ 0,00</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 3. Valor Segurado Total -->
+            <div class="result-section">
+                <div class="section-title">Valor Segurado</div>
+                <div class="result-total">
+                    <span class="result-label">Valor Total Segurado</span>
+                    <span class="result-value" id="res-valor-segurado">R$ 0,00</span>
+                </div>
+                <div class="conversion-info">
+                    <i class="fas fa-calculator"></i> Cálculo: <span id="res-calculo-valor">0 sacas × R$ 0,00</span>
+                </div>
+            </div>
+            
+            <div class="legal-notice">
+                Os valores apresentados são meramente estimativos, com finalidade exclusivamente informativa, não constituindo cotação oficial, proposta contratual ou garantia de condições comerciais ou securitárias.
+            </div>
+            
+            <!-- WhatsApp -->
+            <div class="whatsapp-info">
+                <div class="benefit-title">
+                    <i class="fab fa-whatsapp"></i> Compartilhar Resultado
+                </div>
+                <p>Envie esta simulação para nosso consultor:</p>
+                <div class="whatsapp-number">+55 11 99626-4938</div>
+                <div class="buttons">
+                    <a href="javascript:void(0);" class="btn btn-whatsapp" onclick="shareToWhatsApp(); return false;">
+                        <i class="fab fa-whatsapp"></i> Enviar por WhatsApp
+                    </a>
+                </div>
+            </div>
+            
+            <div class="buttons">
+                <a href="javascript:void(0);" class="btn btn-secondary" onclick="prevScreen(); return false;"><i class="fas fa-arrow-left"></i> Voltar</a>
+                <a href="javascript:void(0);" class="btn btn-primary" onclick="newSimulation(); return false;">Nova Simulação <i class="fas fa-redo"></i></a>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Simulador desenvolvido para produtores rurais</p>
+            <p>Os valores são estimativas para fins de simulação</p>
+        </div>
+    </div>
+
+    <script>
+        // Configurações iniciais
+        let currentScreen = 1;
+        const totalScreens = 6;
+        const ALC_POR_HA = 2.42;
+        
+        // Dados das culturas
+        const crops = {
+            milho: {
+                name: "Milho Safrinha",
+                icon: "fas fa-corn",
+                color: "var(--verde)",
+                mediaIBGE: 90,
+                taxaPremio: 0.14,
+                exemploProdutividade: "90",
+                exemploCusto: "2500",
+                exemploSaca: "70",
+                sugestaoMin: 70,
+                sugestaoMax: 110
+            },
+            soja: {
+                name: "Soja",
+                icon: "fas fa-seedling",
+                color: "var(--laranja)",
+                mediaIBGE: 54,
+                taxaPremio: 0.0756,
+                exemploProdutividade: "70",
+                exemploCusto: "4000",
+                exemploSaca: "130",
+                sugestaoMin: 50,
+                sugestaoMax: 80
+            }
+        };
+        
+        // Dados atuais da simulação
+        let currentCalculation = {
+            selectedCrop: null,
+            nomeCompleto: "",
+            cidade: "",
+            produtividadeInformada: 0,
+            produtividadeCalculo: 0,
+            areaAlqueires: 0,
+            areaHectares: 0,
+            custoProducaoHa: 0,
+            valorSaca: 0,
+            sacasPorAlqueire: 0,
+            sacasPorHectare: 0,
+            totalSacas: 0,
+            premioLiquido: 0,
+            premioPorAlqueire: 0,
+            premioPorHectare: 0,
+            valorSeguradoTotal: 0
+        };
+        
+        // Parâmetros fixos comuns
+        const NIVEL_COBERTURA = 0.65;
+        const SUBSIDIO_PSR = 0.20;
+        const DESCONTO_RATING = 0.25;
+        const BENEFICIO_RATING = 0.15;
+        
+        // Funções de navegação
+        function updateSteps() {
+            const steps = document.querySelectorAll('.step');
+            steps.forEach(step => {
+                step.classList.remove('active');
+                if (parseInt(step.getAttribute('data-step')) <= currentScreen) {
+                    step.classList.add('active');
+                }
+            });
+        }
+        
+        function showScreen(screenNumber) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            
+            const screenElement = document.getElementById('screen' + screenNumber);
+            if (screenElement) {
+                screenElement.classList.add('active');
+            }
+            currentScreen = screenNumber;
+            updateSteps();
+            
+            // Atualizar conteúdo específico da tela
+            if (screenNumber === 3 && currentCalculation.selectedCrop) {
+                updateCropParameters();
+            }
+        }
+        
+        // Seleção da cultura
+        function selectCrop(cropType) {
+            // Remover seleção anterior
+            document.querySelectorAll('.crop-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // Adicionar seleção atual
+            document.querySelector(`.crop-option.${cropType}`).classList.add('selected');
+            
+            // Salvar seleção
+            currentCalculation.selectedCrop = cropType;
+            
+            // Atualizar placeholders
+            const crop = crops[cropType];
+            document.getElementById('produtividadeHa').placeholder = `Ex: ${crop.exemploProdutividade}`;
+            document.getElementById('custoHa').placeholder = `Ex: ${crop.exemploCusto}`;
+            document.getElementById('valorSaca').placeholder = `Ex: ${crop.exemploSaca}`;
+            
+            // Feedback tátil para iOS
+            if (window.navigator.vibrate) {
+                window.navigator.vibrate(50);
+            }
+        }
+        
+        // Função para alternar abas (compatível com iOS)
+        function switchTab(event, tabType, unit) {
+            event.preventDefault();
+            
+            // Atualizar botões
+            document.querySelectorAll(`[data-tab="${tabType}"]`).forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Atualizar conteúdo
+            if (tabType === 'produtividade') {
+                document.getElementById('produtividade-ha').classList.remove('active');
+                document.getElementById('produtividade-alq').classList.remove('active');
+                document.getElementById(`produtividade-${unit}`).classList.add('active');
+            } else if (tabType === 'custo') {
+                document.getElementById('custo-ha').classList.remove('active');
+                document.getElementById('custo-alq').classList.remove('active');
+                document.getElementById(`custo-${unit}`).classList.add('active');
+            }
+        }
+        
+        // Atualizar parâmetros da cultura
+        function updateCropParameters() {
+            const crop = crops[currentCalculation.selectedCrop];
+            const cropParams = document.getElementById('cropParams');
+            
+            if (!crop) return;
+            
+            const tetoProdutividade = crop.mediaIBGE * (1 + BENEFICIO_RATING);
+            
+            cropParams.className = 'crop-params';
+            if (currentCalculation.selectedCrop === 'soja') {
+                cropParams.classList.add('soja');
+            }
+            
+            cropParams.innerHTML = `
+                <i class="fas fa-info-circle"></i> 
+                <strong>Parâmetros para ${crop.name}:</strong><br>
+                • Média IBGE: ${crop.mediaIBGE} sacas/hectare<br>
+                • Benefício Rating: +15% (teto: ${tetoProdutividade.toFixed(1)} sacas/ha)<br>
+                • Taxa de Seguro: ${(crop.taxaPremio * 100).toFixed(2)}%<br>
+                • Sugestão de preenchimento: ${crop.sugestaoMin}-${crop.sugestaoMax} sacas/ha
+            `;
+            
+            // Atualizar benefício na tela de resultados
+            document.getElementById('benefit-produtividade').textContent = 
+                `15% (${crop.mediaIBGE} → ${tetoProdutividade.toFixed(1)} sacas/ha)`;
+        }
+        
+        // Validação e navegação
+        function nextScreen() {
+            let isValid = true;
+            
+            if (currentScreen === 1) {
+                const nome = document.getElementById('nomeCompleto').value.trim();
+                const cidade = document.getElementById('cidade').value.trim();
+                
+                if (!nome) {
+                    alert("Por favor, informe seu nome completo.");
+                    document.getElementById('nomeCompleto').focus();
+                    isValid = false;
+                } else if (!cidade) {
+                    alert("Por favor, informe a cidade do plantio.");
+                    document.getElementById('cidade').focus();
+                    isValid = false;
+                } else {
+                    currentCalculation.nomeCompleto = nome;
+                    currentCalculation.cidade = cidade;
+                }
+                
+            } else if (currentScreen === 2) {
+                if (!currentCalculation.selectedCrop) {
+                    alert("Por favor, selecione a cultura que deseja simular.");
+                    isValid = false;
+                }
+                
+            } else if (currentScreen === 3) {
+                let produtividade = 0;
+                const prodHaActive = document.getElementById('produtividade-ha').classList.contains('active');
+                
+                if (prodHaActive) {
+                    produtividade = parseFloat(document.getElementById('produtividadeHa').value);
+                    if (!produtividade || produtividade <= 0) {
+                        alert("Por favor, informe a produtividade estimada por hectare.");
+                        document.getElementById('produtividadeHa').focus();
+                        isValid = false;
+                    }
+                } else {
+                    produtividade = parseFloat(document.getElementById('produtividadeAlq').value);
+                    if (!produtividade || produtividade <= 0) {
+                        alert("Por favor, informe a produtividade estimada por alqueire.");
+                        document.getElementById('produtividadeAlq').focus();
+                        isValid = false;
+                    } else {
+                        produtividade = produtividade / ALC_POR_HA;
+                    }
+                }
+                
+                if (isValid) {
+                    currentCalculation.produtividadeInformada = produtividade;
+                }
+                
+            } else if (currentScreen === 4) {
+                const areaAlq = parseFloat(document.getElementById('areaAlqueires').value);
+                const areaHa = parseFloat(document.getElementById('areaHectares').value);
+                
+                if (areaAlq && areaAlq > 0) {
+                    currentCalculation.areaAlqueires = areaAlq;
+                    currentCalculation.areaHectares = areaAlq * ALC_POR_HA;
+                } else if (areaHa && areaHa > 0) {
+                    currentCalculation.areaHectares = areaHa;
+                    currentCalculation.areaAlqueires = areaHa / ALC_POR_HA;
+                } else {
+                    alert("Por favor, informe a área em alqueires ou hectares.");
+                    document.getElementById('areaAlqueires').focus();
+                    isValid = false;
+                }
+                
+            } else if (currentScreen === 5) {
+                let custoProducao = 0;
+                const custoHaActive = document.getElementById('custo-ha').classList.contains('active');
+                const valorSaca = parseFloat(document.getElementById('valorSaca').value);
+                
+                if (custoHaActive) {
+                    custoProducao = parseFloat(document.getElementById('custoHa').value);
+                    if (!custoProducao || custoProducao <= 0) {
+                        alert("Por favor, informe o custo de produção por hectare.");
+                        document.getElementById('custoHa').focus();
+                        isValid = false;
+                    }
+                } else {
+                    custoProducao = parseFloat(document.getElementById('custoAlq').value);
+                    if (!custoProducao || custoProducao <= 0) {
+                        alert("Por favor, informe o custo de produção por alqueire.");
+                        document.getElementById('custoAlq').focus();
+                        isValid = false;
+                    } else {
+                        custoProducao = custoProducao / ALC_POR_HA;
+                    }
+                }
+                
+                if (isValid && (!valorSaca || valorSaca <= 0)) {
+                    alert("Por favor, informe o valor da saca.");
+                    document.getElementById('valorSaca').focus();
+                    isValid = false;
+                }
+                
+                if (isValid) {
+                    currentCalculation.custoProducaoHa = custoProducao;
+                    currentCalculation.valorSaca = valorSaca;
+                    calcularResultados();
+                }
+            }
+            
+            if (isValid && currentScreen < totalScreens) {
+                showScreen(currentScreen + 1);
+            }
+        }
+        
+        function prevScreen() {
+            if (currentScreen > 1) {
+                showScreen(currentScreen - 1);
+            }
+        }
+        
+        // Funções de conversão
+        function updateAlqueiresFromHectares() {
+            const hectares = parseFloat(document.getElementById('areaHectares').value);
+            if (!isNaN(hectares) && hectares >= 0) {
+                const alqueires = hectares / ALC_POR_HA;
+                document.getElementById('areaAlqueires').value = alqueires.toFixed(2);
+            }
+        }
+        
+        function updateHectaresFromAlqueires() {
+            const alqueires = parseFloat(document.getElementById('areaAlqueires').value);
+            if (!isNaN(alqueires) && alqueires >= 0) {
+                const hectares = alqueires * ALC_POR_HA;
+                document.getElementById('areaHectares').value = hectares.toFixed(2);
+            }
+        }
+        
+        function updateProdutividadeAlqueireFromHectare() {
+            const prodHa = parseFloat(document.getElementById('produtividadeHa').value);
+            if (!isNaN(prodHa) && prodHa >= 0) {
+                const prodAlq = prodHa * ALC_POR_HA;
+                document.getElementById('produtividadeAlq').value = prodAlq.toFixed(1);
+            }
+        }
+        
+        function updateProdutividadeHectareFromAlqueire() {
+            const prodAlq = parseFloat(document.getElementById('produtividadeAlq').value);
+            if (!isNaN(prodAlq) && prodAlq >= 0) {
+                const prodHa = prodAlq / ALC_POR_HA;
+                document.getElementById('produtividadeHa').value = prodHa.toFixed(1);
+            }
+        }
+        
+        function updateCustoAlqueireFromHectare() {
+            const custoHa = parseFloat(document.getElementById('custoHa').value);
+            if (!isNaN(custoHa) && custoHa >= 0) {
+                const custoAlq = custoHa * ALC_POR_HA;
+                document.getElementById('custoAlq').value = custoAlq.toFixed(2);
+            }
+        }
+        
+        function updateCustoHectareFromAlqueire() {
+            const custoAlq = parseFloat(document.getElementById('custoAlq').value);
+            if (!isNaN(custoAlq) && custoAlq >= 0) {
+                const custoHa = custoAlq / ALC_POR_HA;
+                document.getElementById('custoHa').value = custoHa.toFixed(2);
+            }
+        }
+        
+        // Funções de formatação
+        function formatCurrency(value) {
+            return 'R$ ' + value.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+        
+        function formatNumber(value, decimals = 0) {
+            return value.toFixed(decimals).replace('.', ',');
+        }
+        
+        // Cálculo principal
+        function calcularResultados() {
+            const crop = crops[currentCalculation.selectedCrop];
+            if (!crop) return;
+            
+            // Calcular teto de produtividade
+            const TETO_PRODUTIVIDADE = crop.mediaIBGE * (1 + BENEFICIO_RATING);
+            
+            // Determinar produtividade para cálculo
+            const produtividadeParaCalculo = Math.min(currentCalculation.produtividadeInformada, TETO_PRODUTIVIDADE);
+            
+            // Calcular produção segurada
+            const produtividadeSegurada = produtividadeParaCalculo * NIVEL_COBERTURA;
+            
+            // Calcular sacas por área
+            const sacasPorHectare = produtividadeSegurada;
+            const sacasPorAlqueire = sacasPorHectare * ALC_POR_HA;
+            const totalSacas = sacasPorHectare * currentCalculation.areaHectares;
+            
+            // Calcular valor segurado
+            const valorSeguradoTotal = totalSacas * currentCalculation.valorSaca;
+            
+            // Cálculo do prêmio
+            const premioBruto = valorSeguradoTotal * crop.taxaPremio;
+            const valorSubsidio = premioBruto * SUBSIDIO_PSR;
+            const premioAposSubsidio = premioBruto - valorSubsidio;
+            const valorDescontoRating = premioAposSubsidio * DESCONTO_RATING;
+            const premioLiquido = premioAposSubsidio - valorDescontoRating;
+            
+            // Cálculos por área
+            const premioPorHectare = premioLiquido / currentCalculation.areaHectares;
+            const premioPorAlqueire = premioLiquido / currentCalculation.areaAlqueires;
+            
+            // Atualizar objeto de cálculo
+            currentCalculation.produtividadeCalculo = produtividadeParaCalculo;
+            currentCalculation.sacasPorAlqueire = sacasPorAlqueire;
+            currentCalculation.sacasPorHectare = produtividadeSegurada;
+            currentCalculation.totalSacas = totalSacas;
+            currentCalculation.premioLiquido = premioLiquido;
+            currentCalculation.premioPorAlqueire = premioPorAlqueire;
+            currentCalculation.premioPorHectare = premioPorHectare;
+            currentCalculation.valorSeguradoTotal = valorSeguradoTotal;
+            
+            // Atualizar interface
+            document.getElementById('res-sacas-alq').textContent = formatNumber(sacasPorAlqueire, 1);
+            document.getElementById('res-sacas-ha').textContent = formatNumber(sacasPorHectare, 1);
+            document.getElementById('res-sacas-total').textContent = formatNumber(totalSacas, 0) + ' sacas';
+            
+            document.getElementById('res-premio-total').textContent = formatCurrency(premioLiquido);
+            document.getElementById('res-premio-alq').textContent = formatCurrency(premioPorAlqueire);
+            document.getElementById('res-premio-ha').textContent = formatCurrency(premioPorHectare);
+            
+            document.getElementById('res-valor-segurado').textContent = formatCurrency(valorSeguradoTotal);
+            document.getElementById('res-calculo-valor').textContent = 
+                formatNumber(totalSacas, 0) + ' sacas × ' + formatCurrency(currentCalculation.valorSaca);
+            
+            // Aplicar cor da cultura na tela de resultados
+            const resultScreen = document.getElementById('screen6');
+            resultScreen.className = 'screen result-screen';
+            if (currentCalculation.selectedCrop === 'soja') {
+                resultScreen.classList.add('soja');
+            }
+            
+            // Mostrar benefício extra se aplicável
+            if (currentCalculation.produtividadeInformada > TETO_PRODUTIVIDADE) {
+                const beneficiosDiv = document.querySelector('.benefit-box');
+                // Remover benefício extra anterior se existir
+                const existingExtra = beneficiosDiv.querySelector('.benefit-item:last-child[style*="color: #2e7d32"]');
+                if (existingExtra) {
+                    existingExtra.remove();
+                }
+                
+                const extraInfo = document.createElement('div');
+                extraInfo.className = 'benefit-item';
+                extraInfo.style.color = '#2e7d32';
+                extraInfo.style.fontWeight = '600';
+                extraInfo.innerHTML = `<span>Seu rating evitou redução de:</span><span>${formatNumber(currentCalculation.produtividadeInformada - TETO_PRODUTIVIDADE, 1)} sacas/ha</span>`;
+                beneficiosDiv.appendChild(extraInfo);
+            }
+        }
+        
+        // Nova simulação
+        function newSimulation() {
+            // Resetar formulário
+            document.getElementById('nomeCompleto').value = '';
+            document.getElementById('cidade').value = '';
+            document.getElementById('produtividadeHa').value = '';
+            document.getElementById('produtividadeAlq').value = '';
+            document.getElementById('areaAlqueires').value = '';
+            document.getElementById('areaHectares').value = '';
+            document.getElementById('custoHa').value = '';
+            document.getElementById('custoAlq').value = '';
+            document.getElementById('valorSaca').value = '';
+            
+            // Resetar seleção de cultura
+            document.querySelectorAll('.crop-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // Resetar abas
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            document.querySelector('.tab-button').classList.add('active');
+            document.querySelector('.tab-content').classList.add('active');
+            
+            // Remover informações extras
+            const beneficiosDiv = document.querySelector('.benefit-box');
+            const items = beneficiosDiv.querySelectorAll('.benefit-item');
+            if (items.length > 3) {
+                for (let i = 3; i < items.length; i++) {
+                    items[i].remove();
+                }
+            }
+            
+            // Resetar dados
+            currentCalculation = {
+                selectedCrop: null,
+                nomeCompleto: "",
+                cidade: "",
+                produtividadeInformada: 0,
+                produtividadeCalculo: 0,
+                areaAlqueires: 0,
+                areaHectares: 0,
+                custoProducaoHa: 0,
+                valorSaca: 0,
+                sacasPorAlqueire: 0,
+                sacasPorHectare: 0,
+                totalSacas: 0,
+                premioLiquido: 0,
+                premioPorAlqueire: 0,
+                premioPorHectare: 0,
+                valorSeguradoTotal: 0
+            };
+            
+            // Voltar para início
+            showScreen(1);
+        }
+        
+        // Compartilhar no WhatsApp
+        function shareToWhatsApp() {
+            const phoneNumber = "5511996264938";
+            const crop = crops[currentCalculation.selectedCrop];
+            
+            if (!crop) {
+                alert("Por favor, selecione uma cultura primeiro.");
+                return;
+            }
+            
+            // Formatar mensagem
+            const message = `*SIMULAÇÃO DE SEGURO - ${crop.name.toUpperCase()}*%0A%0A` +
+                           `*Dados do Produtor:*%0A` +
+                           `Nome: ${currentCalculation.nomeCompleto}%0A` +
+                           `Cidade: ${currentCalculation.cidade}%0A%0A` +
+                           `*Dados Informados:*%0A` +
+                           `Cultura: ${crop.name}%0A` +
+                           `Produtividade: ${formatNumber(currentCalculation.produtividadeInformada, 1)} sacas/ha%0A` +
+                           `Área: ${formatNumber(currentCalculation.areaAlqueires, 2)} alq (${formatNumber(currentCalculation.areaHectares, 2)} ha)%0A` +
+                           `Custo: ${formatCurrency(currentCalculation.custoProducaoHa)}/ha%0A` +
+                           `Valor da Saca: ${formatCurrency(currentCalculation.valorSaca)}%0A%0A` +
+                           `*Resultados:*%0A` +
+                           `Sacas Seguradas: ${formatNumber(currentCalculation.totalSacas, 0)} sacas%0A` +
+                           `(${formatNumber(currentCalculation.sacasPorAlqueire, 1)}/alq | ${formatNumber(currentCalculation.sacasPorHectare, 1)}/ha)%0A` +
+                           `Valor Segurado: ${formatCurrency(currentCalculation.valorSeguradoTotal)}%0A` +
+                           `Prêmio Líquido: ${formatCurrency(currentCalculation.premioLiquido)}%0A` +
+                           `(${formatCurrency(currentCalculation.premioPorAlqueire)}/alq | ${formatCurrency(currentCalculation.premioPorHectare)}/ha)%0A%0A` +
+                           `*Benefícios Rating 65:*%0A` +
+                           `✓ 25% desconto na taxa%0A` +
+                           `✓ +15% produtividade base%0A` +
+                           `✓ 65% cobertura da produção%0A%0A` +
+                           `_Gerado em ${new Date().toLocaleDateString('pt-BR')}_`;
+            
+            // Abrir WhatsApp
+            window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+        }
+        
+        // Event listeners com otimização para iOS
+        document.addEventListener('DOMContentLoaded', function() {
+            // Event listeners para conversão automática
+            const areaHectares = document.getElementById('areaHectares');
+            const areaAlqueires = document.getElementById('areaAlqueires');
+            const produtividadeHa = document.getElementById('produtividadeHa');
+            const produtividadeAlq = document.getElementById('produtividadeAlq');
+            const custoHa = document.getElementById('custoHa');
+            const custoAlq = document.getElementById('custoAlq');
+            
+            // Usar input para melhor resposta no iOS
+            areaHectares.addEventListener('input', updateAlqueiresFromHectares);
+            areaAlqueires.addEventListener('input', updateHectaresFromAlqueires);
+            produtividadeHa.addEventListener('input', updateProdutividadeAlqueireFromHectare);
+            produtividadeAlq.addEventListener('input', updateProdutividadeHectareFromAlqueire);
+            custoHa.addEventListener('input', updateCustoAlqueireFromHectare);
+            custoAlq.addEventListener('input', updateCustoHectareFromAlqueire);
+            
+            // Prevenir zoom em inputs no iOS
+            document.querySelectorAll('input[type="number"]').forEach(input => {
+                input.addEventListener('focus', function() {
+                    setTimeout(() => {
+                        this.style.fontSize = '16px';
+                    }, 100);
+                });
+                
+                input.addEventListener('blur', function() {
+                    this.style.fontSize = '';
+                });
+            });
+            
+            // Inicializar
+            updateSteps();
+            
+            // Forçar redimensionamento para evitar bugs visuais no iOS
+            setTimeout(() => {
+                window.scrollTo(0, 0);
+                document.body.style.height = '100%';
+            }, 100);
+        });
+    </script>
+</body>
+</html>
