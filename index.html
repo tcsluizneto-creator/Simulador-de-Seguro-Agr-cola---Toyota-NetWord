@@ -762,7 +762,9 @@
             
             <div class="input-group">
                 <label for="cidade" class="input-label">Cidade do Plantio</label>
-                <input type="text" id="cidade" class="input-field" placeholder="Cidade onde fica a lavoura">
+                <select id="cidade" class="input-field" required>
+                    <option value="">-- Selecione uma cidade --</option>
+                </select>
             </div>
             
             <div class="buttons">
@@ -829,7 +831,7 @@
             <div id="produtividade-ha" class="tab-content active">
                 <div class="input-group">
                     <label for="produtividadeHa" class="input-label">Produtividade Estimada (sacas/hectare)</label>
-                    <input type="number" id="produtividadeHa" class="input-field" placeholder="Ex: 90" min="0" step="1" inputmode="decimal">
+                    <input type="number" id="produtividadeHa" class="input-field" placeholder="Ex: 90" min="0" step="1" inputmode="decimal" onchange="showCoverageOptions()">
                     <div class="input-note">Número de sacas que você espera colher por hectare</div>
                 </div>
             </div>
@@ -837,13 +839,39 @@
             <div id="produtividade-alq" class="tab-content">
                 <div class="input-group">
                     <label for="produtividadeAlq" class="input-label">Produtividade Estimada (sacas/alqueire)</label>
-                    <input type="number" id="produtividadeAlq" class="input-field" placeholder="Ex: 218" min="0" step="1" inputmode="decimal">
+                    <input type="number" id="produtividadeAlq" class="input-field" placeholder="Ex: 218" min="0" step="1" inputmode="decimal" onchange="showCoverageOptions()">
                     <div class="input-note">Número de sacas que você espera colher por alqueire</div>
                 </div>
             </div>
             
+            <!-- SEÇÃO DE NÍVEL DE COBERTURA (dinâmica) -->
+            <div id="coverageSection" class="hidden">
+                <div class="input-group">
+                    <label for="nivelCobertura" class="input-label">Nível de Cobertura</label>
+                    <select id="nivelCobertura" class="input-field" onchange="updateCoverageDisplay()">
+                        <option value="">-- Selecione o nível de cobertura --</option>
+                    </select>
+                    <div class="input-note" id="coverageNote">Selecione o percentual de cobertura desejado</div>
+                </div>
+                
+                <!-- Exibição instantânea de sacas seguradas -->
+                <div class="result-section" id="sacasSeguradasPreview" style="display: none;">
+                    <div class="section-title">Sacas Seguradas por Este Nível</div>
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <span class="result-label">Por Alqueire</span>
+                            <span class="result-value" id="preview-sacas-alq">0</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Por Hectare</span>
+                            <span class="result-value" id="preview-sacas-ha">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="rating-benefit">
-                <i class="fas fa-info-circle"></i> <strong>Benefício do Rating 65:</strong> Você tem direito a até 15% acima da média IBGE. Se sua produtividade for maior que o teto, usaremos o valor do teto.
+                <i class="fas fa-info-circle"></i> <strong>Benefício do Rating 65:</strong> Você tem direito a até 15% acima da produtividade segurada da sua cidade. Se sua produtividade for maior que o teto, usaremos o valor do teto.
             </div>
             
             <div class="buttons">
@@ -939,7 +967,11 @@
                 </div>
                 <div class="benefit-item">
                     <span>Nível de cobertura:</span>
-                    <span>65% da produção</span>
+                    <span id="benefit-cobertura">65% da produção</span>
+                </div>
+                <div class="benefit-item" style="background-color: #c8e6c9; color: #2e7d32; font-weight: 600; margin-top: 10px;">
+                    <span><i class="fas fa-check"></i> Subsídio Agrícola (20%)</span>
+                    <span>✓ Já incluído na taxa</span>
                 </div>
             </div>
             
@@ -1024,6 +1056,455 @@
     </div>
 
     <script>
+        // ============ BASE DE DADOS UNIFICADA ============
+        const tabelaMunicipios = {
+            "Abatiá": { prodMilho: 77.350357615894, taxaMilho: 0.11629625430550122, prodSoja: 43.17808666666665, taxaSoja: 0.06508252046048431 },
+            "Água Boa": { prodMilho: 71.472, taxaMilho: 0.1168000357184171, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Altamira do Paraná": { prodMilho: 69.33035860979459, taxaMilho: 0.12565020061566815, prodSoja: 51.76520000000001, taxaSoja: 0.061290647529487985 },
+            "Altaneira": { prodMilho: 64.22225294117649, taxaMilho: 0.12276264827384259, prodSoja: 47.96, taxaSoja: 0.05879999782413773 },
+            "Alto Paraíso": { prodMilho: 78.69218936446188, taxaMilho: 0.1300217113860467, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Alto Paraná": { prodMilho: 150.90711666666667, taxaMilho: 0.10136520414894888, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Alto Piquiri": { prodMilho: 82.30002511415523, taxaMilho: 0.12068493468380996, prodSoja: 49.19672357723578, taxaSoja: 0.07333103403673102 },
+            "Alto Porã": { prodMilho: 85.20007369614524, taxaMilho: 0.08182610564957145, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Alto Santa Fé": { prodMilho: 75.39113839285714, taxaMilho: 0.08337398392616602, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Altônia": { prodMilho: 82.77502173913047, taxaMilho: 0.12453120563962392, prodSoja: 42.45093333333333, taxaSoja: 0.08085561696206754 },
+            "Alvorada do Iguaçu": { prodMilho: 80.78503615196082, taxaMilho: 0.08191441380550887, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Alvorada do Sul": { prodMilho: 101.3, taxaMilho: 0.11368381821008772, prodSoja: 27.24662433862435, taxaSoja: 0.05173572252406878 },
+            "Amaporã": { prodMilho: 87.3162435897436, taxaMilho: 0.1035101399677182, prodSoja: 42, taxaSoja: 0.0828645841521378 },
+            "Ampére": { prodMilho: 76.55389599999998, taxaMilho: 0.1152775059592911, prodSoja: 55.30909090909092, taxaSoja: 0.08257851513348304 },
+            "Anahy": { prodMilho: 86.54458823529411, taxaMilho: 0.10461190192727819, prodSoja: 53.95133333333333, taxaSoja: 0.06547436746228874 },
+            "Andirá": { prodMilho: 82.48488799076208, taxaMilho: 0.11230473630105667, prodSoja: 53.103232456140354, taxaSoja: 0.05600800548414205 },
+            "Ângulo": { prodMilho: 89.11592151034822, taxaMilho: 0.11284265332344774, prodSoja: 43.068416666666664, taxaSoja: 0.06229297095202619 },
+            "Aparecida do Ivaí": { prodMilho: 78.19505003599699, taxaMilho: 0.08733913106126434, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Apucarana": { prodMilho: 71.76691047619033, taxaMilho: 0.10778497564869507, prodSoja: 51.70680476190475, taxaSoja: 0.050330751913183314 },
+            "Aquidaban": { prodMilho: 92.69, taxaMilho: 0.08866662360831709, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Arapongas": { prodMilho: 86.27271484374988, taxaMilho: 0.11465688440386135, prodSoja: 60.081037037037035, taxaSoja: 0.05409539802784934 },
+            "Arapoti": { prodMilho: 102.30766666666666, taxaMilho: 0.10176387340989185, prodSoja: 64.43760666666668, taxaSoja: 0.05766475191954727 },
+            "Arapuã": { prodMilho: 76.79926344086036, taxaMilho: 0.10577455775680786, prodSoja: 18.993888888888883, taxaSoja: 0.07330882411108024 },
+            "Arapuan": { prodMilho: 86.49713775510195, taxaMilho: 0.08269565492981495, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Araruna": { prodMilho: 69.91721428571428, taxaMilho: 0.10112879308255392, prodSoja: 53.19822222222221, taxaSoja: 0.07018122955735659 },
+            "Ariranha do Ivaí": { prodMilho: 80.88377690288723, taxaMilho: 0.09767279417039296, prodSoja: 17.999666666666666, taxaSoja: 0.08380770949787814 },
+            "Arquimedes": { prodMilho: 87.25075609756098, taxaMilho: 0.1487407337568208, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Assaí": { prodMilho: 82.177, taxaMilho: 0.11176900830802354, prodSoja: 49.53798655913978, taxaSoja: 0.05402786486115539 },
+            "Assis Chateaubriand": { prodMilho: 93.11358333333334, taxaMilho: 0.11331639418667128, prodSoja: 57.545927002583916, taxaSoja: 0.07512740409949427 },
+            "Astorga": { prodMilho: 432.5320833333333, taxaMilho: 0.11466177167204022, prodSoja: 44.91761594202898, taxaSoja: 0.05600333533415476 },
+            "Atalaia": { prodMilho: 67.29589754098356, taxaMilho: 0.12111965885988017, prodSoja: 38.39103703703703, taxaSoja: 0.0598307804075959 },
+            "Aurora do Iguaçu": { prodMilho: 80, taxaMilho: 0.20509738793094165, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Bairro Limoeiro": { prodMilho: 71.73706218905475, taxaMilho: 0.08076959749102128, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Bandeirantes": { prodMilho: 84.90420498084292, taxaMilho: 0.11328530265958285, prodSoja: 53.05904487179487, taxaSoja: 0.055423316495076404 },
+            "Bandeirantes do Oeste": { prodMilho: 80, taxaMilho: 0.11136001059021822, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Bandeirantes d'Oeste": { prodMilho: 86.76333333333332, taxaMilho: 0.08678260615117013, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Barão de Lucena": { prodMilho: 73.06155971769805, taxaMilho: 0.11679997991846758, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Barbosa Ferraz": { prodMilho: 66.87756250000001, taxaMilho: 0.11366298427309036, prodSoja: 45.54488333333334, taxaSoja: 0.0661946620793453 },
+            "Barra do Jacaré": { prodMilho: 97.15421743929357, taxaMilho: 0.11430364952314975, prodSoja: 59.99985, taxaSoja: 0.054777488388667875 },
+            "Barra Grande": { prodMilho: 60.113302325581394, taxaMilho: 0.0839999949854821, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Barracão": { prodMilho: 80.12223737373738, taxaMilho: 0.10312665685249624, prodSoja: 56.025666666666666, taxaSoja: 0.07329875308403369 },
+            "Barreiro": { prodMilho: 88.1611387969095, taxaMilho: 0.07982219486938341, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Barro Preto": { prodMilho: 85.44973340627295, taxaMilho: 0.09598509304422838, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Bela Vista da Caroba": { prodMilho: 81.73398333333334, taxaMilho: 0.1291094608374725, prodSoja: 44.00083333333334, taxaSoja: 0.05437101588270768 },
+            "Bela Vista do Paraíso": { prodMilho: 95.6975704874836, taxaMilho: 0.11471098713932097, prodSoja: 30.8113076923077, taxaSoja: 0.056491097205575304 },
+            "Bernardelli": { prodMilho: 90.80148863636366, taxaMilho: 0.08399999369118184, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Boa Esperança": { prodMilho: 82.801565920398, taxaMilho: 0.09648606902121898, prodSoja: 40.20560784313725, taxaSoja: 0.07248024622335361 },
+            "Boa Esperança do Iguaçu": { prodMilho: 75.31559090909091, taxaMilho: 0.12604419434822614, prodSoja: 57.467666666666666, taxaSoja: 0.08578224692894308 },
+            "Boa Ventura de São Roque": { prodMilho: 79.53213108614237, taxaMilho: 0.09939134319253358, prodSoja: 63.39244444444445, taxaSoja: 0.05843459045860978 },
+            "Boa Vista": { prodMilho: 100.30815123456789, taxaMilho: 0.1366400101313596, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Boa Vista da Aparecida": { prodMilho: 79.79570833333332, taxaMilho: 0.1089036948276232, prodSoja: 37.55448717948718, taxaSoja: 0.0508954834932448 },
+            "Bom Jesus do Sul": { prodMilho: 97.3133619607843, taxaMilho: 0.10473321280379938, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Bom Princípio do Oeste": { prodMilho: 154.94031249999998, taxaMilho: 0.09662362705709289, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Bom Progresso": { prodMilho: 63.842803834808294, taxaMilho: 0.12264000320979762, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Bom Sucesso": { prodMilho: 90.57957142857143, taxaMilho: 0.12049228226519203, prodSoja: 32.917, taxaSoja: 0.05740348205848705 },
+            "Bom Sucesso do Sul": { prodMilho: 61.42905434782607, taxaMilho: 0.09337044288070785, prodSoja: 59.4, taxaSoja: 0.06943998079004052 },
+            "Borman": { prodMilho: 66.36920689655172, taxaMilho: 0.08678260556365819, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Borrazópolis": { prodMilho: 103.19418518518518, taxaMilho: 0.1165629499016574, prodSoja: 51.378952380952384, taxaSoja: 0.06193076034976497 },
+            "Bourbonia": { prodMilho: 83.20062666666665, taxaMilho: 0.08400003162413659, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Braganey": { prodMilho: 84.40763063063062, taxaMilho: 0.11404786291272372, prodSoja: 56.4173869047619, taxaSoja: 0.06520586277944694 },
+            "Bragantina": { prodMilho: 72.7865, taxaMilho: 0.11432546675323078, prodSoja: 49.86666666666667, taxaSoja: 0.08269182655842264 },
+            "Brasilândia do Sul": { prodMilho: 92.15517901234568, taxaMilho: 0.11974253245804828, prodSoja: 50.82473333333335, taxaSoja: 0.07205149161451624 },
+            "Cafeara": { prodMilho: 82.47483677482815, taxaMilho: 0.11870346229289516, prodSoja: 22.986083333333333, taxaSoja: 0.07660966893638656 },
+            "Cafeeiros": { prodMilho: 88.24108585858585, taxaMilho: 0.08530199514450837, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Cafelândia": { prodMilho: 76.42466666666668, taxaMilho: 0.10827894163629183, prodSoja: 58.7043425925926, taxaSoja: 0.05590595034837753 },
+            "Cafezal do Sul": { prodMilho: 77.33166666666666, taxaMilho: 0.11714127039269072, prodSoja: 43.863431372549016, taxaSoja: 0.08336984732350099 },
+            "Califórnia": { prodMilho: 84.73888888888888, taxaMilho: 0.10439491840919031, prodSoja: 25.04939583333333, taxaSoja: 0.05259637226148953 },
+            "Cambará": { prodMilho: 58.82492982456141, taxaMilho: 0.11587162230886057, prodSoja: 54.65611267605633, taxaSoja: 0.06048278488709632 },
+            "Cambé": { prodMilho: 68.51852956989244, taxaMilho: 0.1084572209690738, prodSoja: 52.11910833333333, taxaSoja: 0.05254635347957497 },
+            "Cambira": { prodMilho: 77.52544894894893, taxaMilho: 0.09865845320918712, prodSoja: 23.65, taxaSoja: 0.05082407511098319 },
+            "Campina da Lagoa": { prodMilho: 90.47, taxaMilho: 0.10343271232824706, prodSoja: 53.23910087719298, taxaSoja: 0.058787286348141246 },
+            "Campo Bonito": { prodMilho: 63.76159523809523, taxaMilho: 0.11279273391625778, prodSoja: 57.87, taxaSoja: 0.06486810778051173 },
+            "Campo Mourão": { prodMilho: 82.43429166666667, taxaMilho: 0.09648033385083189, prodSoja: 53.18641145833333, taxaSoja: 0.06506067538348294 },
+            "Cândido de Abreu": { prodMilho: 76.66406000000005, taxaMilho: 0.13677514252277098, prodSoja: 19.371166666666667, taxaSoja: 0.05806589434068502 },
+            "Candói": { prodMilho: 83.33, taxaMilho: 0.08118399917688833, prodSoja: 69.08333333333333, taxaSoja: 0.029159411914681098 },
+            "Canela": { prodMilho: 82.69388153846131, taxaMilho: 0.08399997904156188, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Cantagalo": { prodMilho: 93.11986842105264, taxaMilho: 0.10520861540473969, prodSoja: 32.93361904761905, taxaSoja: 0.0538831928691044 },
+            "Capanema": { prodMilho: 81.72693282636259, taxaMilho: 0.12159081027174094, prodSoja: 55.23129166666667, taxaSoja: 0.08161458463718783 },
+            "Capitão Leônidas Marques": { prodMilho: 87.54336434108525, taxaMilho: 0.1102817386125081, prodSoja: 59.07338095238095, taxaSoja: 0.06967913715563483 },
+            "Carlópolis": { prodMilho: 76.69550520833332, taxaMilho: 0.11972405462142022, prodSoja: 58.66972222222221, taxaSoja: 0.05484409548427347 },
+            "Casa Branca": { prodMilho: 95.12816666666666, taxaMilho: 0.08399999656045727, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Cascavel": { prodMilho: 80.97553703703701, taxaMilho: 0.10932377485615222, prodSoja: 46.72260648148146, taxaSoja: 0.053528557820577666 },
+            "Catanduvas": { prodMilho: 78.82644841269841, taxaMilho: 0.10845149211277877, prodSoja: 64.7675, taxaSoja: 0.05885858161247764 },
+            "Cedro": { prodMilho: 82.86979315476187, taxaMilho: 0.11499158195638266, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Centenário do Sul": { prodMilho: 96.02566666666667, taxaMilho: 0.13814236563377882, prodSoja: 43.01056666666667, taxaSoja: 0.07326221770390688 },
+            "Céu Azul": { prodMilho: 78.53072800925929, taxaMilho: 0.11140568127177186, prodSoja: 53.59865333333333, taxaSoja: 0.05336390017641268 },
+            "Chopinzinho": { prodMilho: 91.34346803653013, taxaMilho: 0.09423272398756143, prodSoja: 55.61833333333333, taxaSoja: 0.05617246076510947 },
+            "Cianorte": { prodMilho: 76.63301572327042, taxaMilho: 0.11688840624398651, prodSoja: 41.9685303030303, taxaSoja: 0.07815259797146568 },
+            "Cidade Gaúcha": { prodMilho: 71.40583333333335, taxaMilho: 0.1318281812340214, prodSoja: 10.139916666666666, taxaSoja: 0.06948539912932686 },
+            "Clevelândia": { prodMilho: 83.42271032504769, taxaMilho: 0.1062180044147028, prodSoja: 64.35, taxaSoja: 0.05703018578774938 },
+            "Colônia Melissa": { prodMilho: 85.48106423611121, taxaMilho: 0.10280000973437993, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Colorado": { prodMilho: 72.97763375796177, taxaMilho: 0.1187383496833325, prodSoja: 48.23883333333333, taxaSoja: 0.06148404788477592 },
+            "Concórdia do Oeste": { prodMilho: 78.10985185185184, taxaMilho: 0.10746510322146947, prodSoja: 63.589666666666666, taxaSoja: 0.07424000486415683 },
+            "Congonhas": { prodMilho: 74.17292361111107, taxaMilho: 0.11904326643756907, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Congonhinhas": { prodMilho: 86.8042403685092, taxaMilho: 0.12914672303736818, prodSoja: 23.6212794117647, taxaSoja: 0.05452586740001763 },
+            "Conselheiro Mairinck": { prodMilho: 254.0522083333333, taxaMilho: 0.12647241720170493, prodSoja: 62.15, taxaSoja: 0.0697599786821017 },
+            "Corbélia": { prodMilho: 74.7630925925926, taxaMilho: 0.1060902502021296, prodSoja: 57.097534090909086, taxaSoja: 0.05681276770747458 },
+            "Cornélio Procópio": { prodMilho: 88.9965767195763, taxaMilho: 0.11024139680379692, prodSoja: 42.35574774774775, taxaSoja: 0.05362344023635162 },
+            "Coronel Vivida": { prodMilho: 81.20617948717951, taxaMilho: 0.09407282904209936, prodSoja: 53.05061111111112, taxaSoja: 0.06948669046647026 },
+            "Correia de Freitas": { prodMilho: 72.58265384615385, taxaMilho: 0.10960003006678422, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Corumbataí do Sul": { prodMilho: 62.75234027777777, taxaMilho: 0.10348073526927344, prodSoja: 55.096916666666665, taxaSoja: 0.06546459169705647 },
+            "Covó": { prodMilho: 88.00913541666667, taxaMilho: 0.0923478228937777, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Cristo Rei": { prodMilho: 87.00697619047618, taxaMilho: 0.08400000431658247, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Cruzeiro do Iguaçu": { prodMilho: 60, taxaMilho: 0.11905813407833171, prodSoja: 55.30520000000001, taxaSoja: 0.11500462020901768 },
+            "Cruzeiro do Norte": { prodMilho: 74.97219642857146, taxaMilho: 0.10859062576368379, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Cruzeiro do Oeste": { prodMilho: 86.16943276108724, taxaMilho: 0.12481518241218588, prodSoja: 42.36755555555555, taxaSoja: 0.07949409306549238 },
+            "Cruzeiro do Sul": { prodMilho: 40.871833333333335, taxaMilho: 0.11535310270567527, prodSoja: 44.4164074074074, taxaSoja: 0.04832928234320484 },
+            "Cruzmaltina": { prodMilho: 72.33874392935978, taxaMilho: 0.1086013706407985, prodSoja: 22.893809523809534, taxaSoja: 0.06346566966840518 },
+            "Curitiba": { prodMilho: 75, taxaMilho: 0.10755967882601208, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Curiúva": { prodMilho: 89.42621014492751, taxaMilho: 0.11622900636307465, prodSoja: 63.891666666666666, taxaSoja: 0.05290549718217299 },
+            "Dez de Maio": { prodMilho: 94.1597, taxaMilho: 0.10629393924569774, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Diamante do Norte": { prodMilho: 73.13949999999998, taxaMilho: 0.11332434323718656, prodSoja: 41.07919444444445, taxaSoja: 0.09266119116719011 },
+            "Diamante do Sul": { prodMilho: 64.69530542635653, taxaMilho: 0.09379299972119584, prodSoja: 44.70933333333333, taxaSoja: 0.06088113669287347 },
+            "Diamante d'Oeste": { prodMilho: 80.10999420289859, taxaMilho: 0.1193621823118552, prodSoja: 28.42181944444445, taxaSoja: 0.06085099400068985 },
+            "Dois Irmãos (Toledo)": { prodMilho: 75.71640243902439, taxaMilho: 0.11304783888572253, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Dois Vizinhos": { prodMilho: 92.01, taxaMilho: 0.12249770993900651, prodSoja: 51.75129166666665, taxaSoja: 0.07594424578156685 },
+            "Douradina": { prodMilho: 58.60452564102563, taxaMilho: 0.10761945794914714, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Doutor Antônio Paranhos": { prodMilho: 88.30789700374541, taxaMilho: 0.12226087848012046, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Doutor Camargo": { prodMilho: 88.50626388888868, taxaMilho: 0.11912979642150731, prodSoja: 24.995405349794233, taxaSoja: 0.06658704057822512 },
+            "Doutor Ernesto": { prodMilho: 83.30644615384624, taxaMilho: 0.1366399689794163, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Eliza": { prodMilho: 82.13674999999999, taxaMilho: 0.10049274337925299, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Encantado d'Oeste": { prodMilho: 81.1894611872146, taxaMilho: 0.12457263981613247, prodSoja: 44.269999999999996, taxaSoja: 0.11497576209485838 },
+            "Enéas Marques": { prodMilho: 55.29406666666668, taxaMilho: 0.10503261868359787, prodSoja: 58.29633333333334, taxaSoja: 0.08578219068270153 },
+            "Engenheiro Beltrão": { prodMilho: 98.50212372634635, taxaMilho: 0.11584075054223125, prodSoja: 45.637015625000004, taxaSoja: 0.06192998349278828 },
+            "Entre Rios do Oeste": { prodMilho: 84.4656225490196, taxaMilho: 0.11392840125180947, prodSoja: 46.60583333333333, taxaSoja: 0.07607785630523493 },
+            "Esperança do Norte": { prodMilho: 63.06760289855077, taxaMilho: 0.11976004914164941, prodSoja: 48.51, taxaSoja: 0.07159990951811976 },
+            "Espigão Alto do Iguaçu": { prodMilho: 101.4, taxaMilho: 0.11741419771857979, prodSoja: 57.88860416666667, taxaSoja: 0.05673016339775815 },
+            "Espírito Santo": { prodMilho: 76.45957317073172, taxaMilho: 0.10594492141064896, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Farol": { prodMilho: 79.55370632183921, taxaMilho: 0.10533887063505232, prodSoja: 45.69094444444445, taxaSoja: 0.061691323817677314 },
+            "Faxinal": { prodMilho: 78.21285416666666, taxaMilho: 0.10956648676620932, prodSoja: 49.144400000000005, taxaSoja: 0.059321303562589946 },
+            "Fênix": { prodMilho: 71.3643253424657, taxaMilho: 0.10987791058068055, prodSoja: 24.57027777777777, taxaSoja: 0.0661930844735756 },
+            "Fernão Dias": { prodMilho: 82.60540624999999, taxaMilho: 0.10369980154266778, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Figueira do Oeste": { prodMilho: 70.67228205128205, taxaMilho: 0.11679999655182073, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Flor da Serra": { prodMilho: 85.03830048661797, taxaMilho: 0.09333333333333334, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Flor da Serra do Sul": { prodMilho: 77.91834416086618, taxaMilho: 0.09127024391187441, prodSoja: 55.91972222222221, taxaSoja: 0.06312794119050755 },
+            "Floraí": { prodMilho: 76.90522916666666, taxaMilho: 0.11784424380265908, prodSoja: 36.43887179487179, taxaSoja: 0.05850777059913596 },
+            "Floresta": { prodMilho: 71.48, taxaMilho: 0.11862522947841363, prodSoja: 59.00060802469137, taxaSoja: 0.06474707522025408 },
+            "Florestópolis": { prodMilho: 79.23217187499996, taxaMilho: 0.11704842576855277, prodSoja: 48.595724637681165, taxaSoja: 0.05161276873815307 },
+            "Flórida": { prodMilho: 93.82168545994055, taxaMilho: 0.12120709395400506, prodSoja: 44.97968888888888, taxaSoja: 0.05948547703449539 },
+            "Formosa do Oeste": { prodMilho: 63.326956060605944, taxaMilho: 0.12257383434947303, prodSoja: 48.42958006535947, taxaSoja: 0.05985270966567617 },
+            "Foz do Iguaçu": { prodMilho: 69.99975299760202, taxaMilho: 0.11239951052435437, prodSoja: 28.736936781609185, taxaSoja: 0.06258382826625859 },
+            "Foz do Jordão": { prodMilho: 261.9577083333333, taxaMilho: 0.09150430122911794, prodSoja: 61.43569047619047, taxaSoja: 0.053020125288597834 },
+            "Francisco Alves": { prodMilho: 84.2875335051547, taxaMilho: 0.11777351450726532, prodSoja: 44.143788888888885, taxaSoja: 0.078011382576107 },
+            "Francisco Beltrão": { prodMilho: 91.79051041666665, taxaMilho: 0.11279902135610069, prodSoja: 60.138000000000005, taxaSoja: 0.08515068265650731 },
+            "Frei Timóteo": { prodMilho: 85.46354642857143, taxaMilho: 0.12024770627839715, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Godoy Moreira": { prodMilho: 89.39994074074075, taxaMilho: 0.12338676285134549, prodSoja: 55.61966666666667, taxaSoja: 0.07959744019010477 },
+            "Goioerê": { prodMilho: 74.42517578125006, taxaMilho: 0.11390570636364439, prodSoja: 41.993994791666665, taxaSoja: 0.0638210594523738 },
+            "Goioxim": { prodMilho: 80.97805184478385, taxaMilho: 0.13014177289566278, prodSoja: 55.951000000000015, taxaSoja: 0.04647953583189588 },
+            "Grandes Rios": { prodMilho: 86.97129032258076, taxaMilho: 0.12834732900890414, prodSoja: 46.52654761904762, taxaSoja: 0.07420200948242159 },
+            "Guaíra": { prodMilho: 80.81254076738614, taxaMilho: 0.11459522672828178, prodSoja: 53.86418333333332, taxaSoja: 0.05833302537719984 },
+            "Guapirama": { prodMilho: 67.23683333333332, taxaMilho: 0.10673340589060663, prodSoja: 58.730000000000004, taxaSoja: 0.05667073522746765 },
+            "Guaporema": { prodMilho: 89.63179701492534, taxaMilho: 0.11260811315664519, prodSoja: 52.30766666666667, taxaSoja: 0.07959999721580671 },
+            "Guaraci": { prodMilho: 74.95214139344262, taxaMilho: 0.12043944959038765, prodSoja: 29.429166666666667, taxaSoja: 0.06963021162248695 },
+            "Guaraniaçu": { prodMilho: 74.6011784037559, taxaMilho: 0.09771570473418892, prodSoja: 59.6111111111111, taxaSoja: 0.06500621110900563 },
+            "Guaravera": { prodMilho: 72.32501075268817, taxaMilho: 0.12055999609023098, prodSoja: 54.230000000000004, taxaSoja: 0.056380356912901476 },
+            "Honório Serpa": { prodMilho: 88.74545454545454, taxaMilho: 0.08988670634315067, prodSoja: 57.47275362318839, taxaSoja: 0.05929922752631413 },
+            "Ibaiti": { prodMilho: 87.64647174329458, taxaMilho: 0.11921609701178205, prodSoja: 35.6176935483871, taxaSoja: 0.06352751823393847 },
+            "Ibema": { prodMilho: 82.90761111111111, taxaMilho: 0.09943627237945876, prodSoja: 55.46925, taxaSoja: 0.0752236003362872 },
+            "Ibiaci": { prodMilho: 79.10694842896149, taxaMilho: 0.06953625529471152, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Ibiporã": { prodMilho: 88.0696123188406, taxaMilho: 0.11186793375061828, prodSoja: 44.769400000000005, taxaSoja: 0.05348757934200126 },
+            "Içara": { prodMilho: 80.37262499999993, taxaMilho: 0.10480002048969689, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Icaraíma": { prodMilho: 80, taxaMilho: 0.14810896680578384, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Iguaraçu": { prodMilho: 74.85875606540041, taxaMilho: 0.11337223426363831, prodSoja: 50.47700000000001, taxaSoja: 0.05591194165002784 },
+            "Iguatu": { prodMilho: 86.30104396728002, taxaMilho: 0.10951782782091933, prodSoja: 62.02708333333333, taxaSoja: 0.06331741211026838 },
+            "Iguiporã": { prodMilho: 99.70666666666666, taxaMilho: 0.10537354583725386, prodSoja: 57.8785, taxaSoja: 0.06804035472415183 },
+            "Inajá": { prodMilho: 203.66049999999998, taxaMilho: 0.10522425006863823, prodSoja: 38.369166666666665, taxaSoja: 0.09540821274894555 },
+            "Indianópolis": { prodMilho: 75.08429279279281, taxaMilho: 0.10684757518834127, prodSoja: 40.592333333333336, taxaSoja: 0.05760650068613063 },
+            "Ipiranga": { prodMilho: 88.45479835390947, taxaMilho: 0.12362392801263135, prodSoja: 65.06054166666667, taxaSoja: 0.05958646546917095 },
+            "Iporã": { prodMilho: 88.71166666666667, taxaMilho: 0.12830743479185222, prodSoja: 41.3095238095238, taxaSoja: 0.07653954608811765 },
+            "Iracema do Oeste": { prodMilho: 86.61888095238089, taxaMilho: 0.117532537776327, prodSoja: 60.370912698412695, taxaSoja: 0.06488028707557188 },
+            "Irerê": { prodMilho: 93.8933030303031, taxaMilho: 0.14118234352731376, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Iretama": { prodMilho: 58.963166666666666, taxaMilho: 0.11138838670506844, prodSoja: 36.68565625, taxaSoja: 0.058004725748776284 },
+            "Itaguajé": { prodMilho: 90.79374233716464, taxaMilho: 0.1409733380510518, prodSoja: 44.323, taxaSoja: 0.06799991741265189 },
+            "Itaipulândia": { prodMilho: 70.55777272727276, taxaMilho: 0.10322137990176927, prodSoja: 49.584444444444465, taxaSoja: 0.05509965331897898 },
+            "Itambaracá": { prodMilho: 76.88824509803916, taxaMilho: 0.11278664564190992, prodSoja: 50.65238425925923, taxaSoja: 0.05895058250838365 },
+            "Itambé": { prodMilho: 79.63882323232326, taxaMilho: 0.11671085818094763, prodSoja: 47.42144444444443, taxaSoja: 0.05840095713040811 },
+            "Itapejara d'Oeste": { prodMilho: 80.95280645161287, taxaMilho: 0.10520132468987918, prodSoja: 60.18102777777777, taxaSoja: 0.07384792554787034 },
+            "Itaúna do Sul": { prodMilho: 88.35617375886551, taxaMilho: 0.09853197861355578, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Ivaí": { prodMilho: 90.6246942446044, taxaMilho: 0.1232544645722607, prodSoja: 53.502777777777766, taxaSoja: 0.06361512509732303 },
+            "Ivailândia": { prodMilho: 64.19313227513227, taxaMilho: 0.12857329796037367, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Ivaiporã": { prodMilho: 80.91783986928107, taxaMilho: 0.10825669561967151, prodSoja: 45.36703571428572, taxaSoja: 0.06857828719002601 },
+            "Ivaté": { prodMilho: 118.05678888888889, taxaMilho: 0.13058100087672453, prodSoja: 39.666666666666664, taxaSoja: 0.11800437118972508 },
+            "Ivatuba": { prodMilho: 81.03090740740741, taxaMilho: 0.11653620599423517, prodSoja: 55.797972222222235, taxaSoja: 0.05980611426044466 },
+            "Jaboti": { prodMilho: 82.5298125, taxaMilho: 0.10965368723777347, prodSoja: 60.13333333333333, taxaSoja: 0.06824000867141139 },
+            "Jacarezinho": { prodMilho: 96.87782837301583, taxaMilho: 0.1221714663137688, prodSoja: 51.15623611111111, taxaSoja: 0.060772702352338816 },
+            "Jaguapitã": { prodMilho: 68.17305072463769, taxaMilho: 0.12202167609278029, prodSoja: 43.53908950617285, taxaSoja: 0.06228293286441905 },
+            "Jaguariaíva": { prodMilho: 78.08296099290781, taxaMilho: 0.10262025560456028, prodSoja: 55.27242156862745, taxaSoja: 0.05248955254489235 },
+            "Jandaia do Sul": { prodMilho: 99.80933333333333, taxaMilho: 0.09987019416276807, prodSoja: 40.014583333333334, taxaSoja: 0.05900822281319295 },
+            "Jangada": { prodMilho: 84.62053703703701, taxaMilho: 0.10880512794440325, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Janiópolis": { prodMilho: 82.2161820250283, taxaMilho: 0.10708776578699776, prodSoja: 55.1034898989899, taxaSoja: 0.05356612279198227 },
+            "Japira": { prodMilho: 95.12044114002452, taxaMilho: 0.1094394491376551, prodSoja: 61.6, taxaSoja: 0.06399999371697485 },
+            "Japurá": { prodMilho: 85.72769230769231, taxaMilho: 0.10550344941390308, prodSoja: 43.837333333333326, taxaSoja: 0.08546430222627434 },
+            "Jardim Alegre": { prodMilho: 73.17909409594111, taxaMilho: 0.12738684381952248, prodSoja: 13.982458333333334, taxaSoja: 0.0467701769304311 },
+            "Jardim Olinda": { prodMilho: 95.12816666666666, taxaMilho: 0.12030633512270095, prodSoja: 49.61541666666667, taxaSoja: 0.07604272635127567 },
+            "Jataizinho": { prodMilho: 94.01768333333334, taxaMilho: 0.11673455944220239, prodSoja: 50.1089090909091, taxaSoja: 0.05381781492585425 },
+            "Jesuítas": { prodMilho: 95.27179044261692, taxaMilho: 0.12799353807884498, prodSoja: 59.55510222222223, taxaSoja: 0.06608784949171707 },
+            "Joaquim Távora": { prodMilho: 80, taxaMilho: 0.14978554703166744, prodSoja: 57.65, taxaSoja: 0.05919124437408988 },
+            "Juciara": { prodMilho: 74.19605555555555, taxaMilho: 0.14893712671399767, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Jundiaí do Sul": { prodMilho: 72.49421180555555, taxaMilho: 0.11343932097523399, prodSoja: 17.49607575757575, taxaSoja: 0.0598942089802553 },
+            "Juranda": { prodMilho: 84.35447222222223, taxaMilho: 0.09934998770652209, prodSoja: 56.04077314814815, taxaSoja: 0.05461759122683926 },
+            "Jussara": { prodMilho: 96.78219907407407, taxaMilho: 0.11912381812449764, prodSoja: 37.68700980392157, taxaSoja: 0.07791264801794053 },
+            "Juvinópolis": { prodMilho: 79.64250000000001, taxaMilho: 0.09368885842987058, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Kaloré": { prodMilho: 83.12753365906624, taxaMilho: 0.12180630373678206, prodSoja: 41.74671527777778, taxaSoja: 0.05974707163691965 },
+            "Laranjal": { prodMilho: 55.31623684210526, taxaMilho: 0.10775022557229974, prodSoja: 54.7, taxaSoja: 0.06040435779486993 },
+            "Laranjeiras do Sul": { prodMilho: 62.14416666666666, taxaMilho: 0.10665490669579081, prodSoja: 63.98685714285713, taxaSoja: 0.06424167845279681 },
+            "Leópolis": { prodMilho: 72.48022222222222, taxaMilho: 0.10851752123614358, prodSoja: 46.40219047619048, taxaSoja: 0.05686457934016234 },
+            "Lerroville": { prodMilho: 87.32525641025642, taxaMilho: 0.10295064050128201, prodSoja: 67.88000000000001, taxaSoja: 0.043999986768720266 },
+            "Lidianópolis": { prodMilho: 74.15983049242412, taxaMilho: 0.12844028976612024, prodSoja: 57.101, taxaSoja: 0.08762672827603343 },
+            "Lindoeste": { prodMilho: 61.32185, taxaMilho: 0.10920473782469592, prodSoja: 15.833789473684211, taxaSoja: 0.043453446001393545 },
+            "Linha Giacomini": { prodMilho: 80.5091282051282, taxaMilho: 0.14399088313166009, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Loanda": { prodMilho: 50.991769230769236, taxaMilho: 0.136640040979176, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Lobato": { prodMilho: 82.7242857142857, taxaMilho: 0.1291821208801739, prodSoja: 50.26800900900901, taxaSoja: 0.06089925781250684 },
+            "Londrina": { prodMilho: 75.62241666666665, taxaMilho: 0.11267421431666265, prodSoja: 49.058537735849065, taxaSoja: 0.05185733712548457 },
+            "Luiziana": { prodMilho: 79.95185416666665, taxaMilho: 0.10677041352285709, prodSoja: 60.83766666666667, taxaSoja: 0.055495062837247186 },
+            "Lunardelli": { prodMilho: 63.897980769230784, taxaMilho: 0.12050183782752406, prodSoja: 57.5090625, taxaSoja: 0.06835645719980879 },
+            "Lupionópolis": { prodMilho: 84.1655023858215, taxaMilho: 0.10578065754439141, prodSoja: 45.25666666666667, taxaSoja: 0.07290353972753391 },
+            "Malu": { prodMilho: 63, taxaMilho: 0.11968095726239436, prodSoja: 43.333333333333336, taxaSoja: 0.06632000031133298 },
+            "Mamborê": { prodMilho: 90.22233835616443, taxaMilho: 0.10183089530013079, prodSoja: 55.6723869047619, taxaSoja: 0.060209436565770436 },
+            "Mandaguaçu": { prodMilho: 88.72374327956986, taxaMilho: 0.11480532959036249, prodSoja: 50.45399999999998, taxaSoja: 0.06109745648802662 },
+            "Mandaguari": { prodMilho: 72.90864102564102, taxaMilho: 0.1140730852352966, prodSoja: 37.09395, taxaSoja: 0.06214678454477335 },
+            "Manfrinópolis": { prodMilho: 71.49020464135022, taxaMilho: 0.10567383151573968, prodSoja: 55.551249999999996, taxaSoja: 0.07104003080485843 },
+            "Mangueirinha": { prodMilho: 79.78455132113834, taxaMilho: 0.0932987754524418, prodSoja: 67.38055555555556, taxaSoja: 0.04407368511142414 },
+            "Manoel Ribas": { prodMilho: 74.68625000000003, taxaMilho: 0.1148812984805143, prodSoja: 59.80298039215687, taxaSoja: 0.06422060274422425 },
+            "Marajó": { prodMilho: 88.30092337164757, taxaMilho: 0.11848838058791845, prodSoja: 49.09, taxaSoja: 0.3265889513036663 },
+            "Maravilha": { prodMilho: 88.96831422924896, taxaMilho: 0.11077332135972662, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Marechal Cândido Rondon": { prodMilho: 78.83586206896548, taxaMilho: 0.1149386478721937, prodSoja: 54.33150925925927, taxaSoja: 0.06695526930481703 },
+            "Margarida": { prodMilho: 89.6538888888889, taxaMilho: 0.11090543198999463, prodSoja: 57.88591666666668, taxaSoja: 0.0680533767504091 },
+            "Marialva": { prodMilho: 74.10249999999999, taxaMilho: 0.11286292217089534, prodSoja: 30.331522598870034, taxaSoja: 0.04832849410966921 },
+            "Marilândia do Sul": { prodMilho: 78.6218125, taxaMilho: 0.11235093262378423, prodSoja: 41.27907407407407, taxaSoja: 0.05059360997783518 },
+            "Mariluz": { prodMilho: 84.25358333333335, taxaMilho: 0.11918245272952858, prodSoja: 53.129617647058815, taxaSoja: 0.06132119409945887 },
+            "Maringá": { prodMilho: 80.38078472222223, taxaMilho: 0.1131795266049287, prodSoja: 41.40106872852232, taxaSoja: 0.056507819893526906 },
+            "Mariópolis": { prodMilho: 81.74319892473119, taxaMilho: 0.09666000545045966, prodSoja: 58.49, taxaSoja: 0.08007952382882125 },
+            "Maripá": { prodMilho: 85.33597039473705, taxaMilho: 0.11281260842355717, prodSoja: 61.60113333333334, taxaSoja: 0.07352000304676791 },
+            "Marmeleiro": { prodMilho: 82.20211851851855, taxaMilho: 0.0889138501409121, prodSoja: 58.49799999999998, taxaSoja: 0.0857822274117471 },
+            "Marquinho": { prodMilho: 82.20945, taxaMilho: 0.12398279224034552, prodSoja: 49.84372222222223, taxaSoja: 0.05664394011723581 },
+            "Marumbi": { prodMilho: 70.73302090592348, taxaMilho: 0.11584783176553275, prodSoja: 31.264083333333335, taxaSoja: 0.05154520479559364 },
+            "Matelândia": { prodMilho: 86.29958333333333, taxaMilho: 0.10697345060931847, prodSoja: 42.019827380952385, taxaSoja: 0.06074306950184988 },
+            "Mato Rico": { prodMilho: 77.79166666666667, taxaMilho: 0.09281777724693242, prodSoja: 46.937133333333335, taxaSoja: 0.04844106682406652 },
+            "Medianeira": { prodMilho: 83.47019152046788, taxaMilho: 0.10459501897283138, prodSoja: 44.36712121212122, taxaSoja: 0.06189588004755557 },
+            "Mercedes": { prodMilho: 92.60437037037038, taxaMilho: 0.11348108458430473, prodSoja: 55.93400666666666, taxaSoja: 0.0679618878161761 },
+            "Mirador": { prodMilho: 70.45500462962963, taxaMilho: 0.1182713094081331, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Mirante do Piquiri": { prodMilho: 80.68303875968995, taxaMilho: 0.10143840192323444, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Miraselva": { prodMilho: 78.64324859708204, taxaMilho: 0.11523515246047165, prodSoja: 34.36533333333333, taxaSoja: 0.06028149076107624 },
+            "Missal": { prodMilho: 56.99804761904762, taxaMilho: 0.1104519047323674, prodSoja: 42.32642592592593, taxaSoja: 0.060450524745607866 },
+            "Moreira Sales": { prodMilho: 68.14934761904763, taxaMilho: 0.11050607820533649, prodSoja: 49.173632352941176, taxaSoja: 0.06397584054747729 },
+            "Munhoz de Melo": { prodMilho: 80.00366666666667, taxaMilho: 0.11913858592532794, prodSoja: 42.509621212121196, taxaSoja: 0.058687646268046866 },
+            "Nossa Senhora da Aparecida": { prodMilho: 82.49412499999998, taxaMilho: 0.11727999673157687, prodSoja: 57.830000000000005, taxaSoja: 0.057920020622172864 },
+            "Nossa Senhora das Graças": { prodMilho: 86.29450046425265, taxaMilho: 0.1166456361065569, prodSoja: 51.36666666666667, taxaSoja: 0.07630441112379399 },
+            "Nova Altamira": { prodMilho: 93.29514444444443, taxaMilho: 0.10489129290180117, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Nova América da Colina": { prodMilho: 86.90922410546129, taxaMilho: 0.12047368351248268, prodSoja: 61.86116666666667, taxaSoja: 0.07100295623261701 },
+            "Nova Aurora": { prodMilho: 83.95457777777777, taxaMilho: 0.11489374087743102, prodSoja: 55.2760806451613, taxaSoja: 0.06344318346387691 },
+            "Nova Brasília": { prodMilho: 81.7871790429042, taxaMilho: 0.11744000310099054, prodSoja: 45.6, taxaSoja: 0.15050231679851542 },
+            "Nova Cantu": { prodMilho: 77.6882142857143, taxaMilho: 0.10686310225221275, prodSoja: 60.26105303030303, taxaSoja: 0.0561376139844877 },
+            "Nova Esperança": { prodMilho: 83.06916666666666, taxaMilho: 0.12878592405724468, prodSoja: 45.93766666666667, taxaSoja: 0.05188653697458954 },
+            "Nova Esperança do Sudoeste": { prodMilho: 51.594461538461545, taxaMilho: 0.0961744761904762, prodSoja: 39.583333333333336, taxaSoja: 0.0777752340346879 },
+            "Nova Fátima": { prodMilho: 71.66790251572331, taxaMilho: 0.1137902716313897, prodSoja: 19.84499019607843, taxaSoja: 0.05689351203552873 },
+            "Nova Laranjeiras": { prodMilho: 75.33725641025642, taxaMilho: 0.11222808213496283, prodSoja: 53.786537037037036, taxaSoja: 0.06624827693464114 },
+            "Nova Prata do Iguaçu": { prodMilho: 315.59402777777774, taxaMilho: 0.1122881067229888, prodSoja: 60.407333333333334, taxaSoja: 0.07765710730289456 },
+            "Nova Santa Bárbara": { prodMilho: 78.62264960182023, taxaMilho: 0.1155428870009385, prodSoja: 58.4615, taxaSoja: 0.06355284464994532 },
+            "Nova Santa Rosa": { prodMilho: 85.4973517773309, taxaMilho: 0.11012086073452083, prodSoja: 63.588906250000015, taxaSoja: 0.06647168555067916 },
+            "Nova Tebas": { prodMilho: 215.5378, taxaMilho: 0.10821656239772161, prodSoja: 47.6835, taxaSoja: 0.054050092923123946 },
+            "Novo Horizonte": { prodMilho: 74.55432352941175, taxaMilho: 0.13599995384606509, prodSoja: 57.923, taxaSoja: 0.06804208865734286 },
+            "Novo Itacolomi": { prodMilho: 88.075, taxaMilho: 0.10774571783262347, prodSoja: 59.69197222222222, taxaSoja: 0.061704320979880815 },
+            "Novo Sarandi": { prodMilho: 66.73950793650793, taxaMilho: 0.11789433164177575, prodSoja: 63.589666666666666, taxaSoja: 0.07290665814387602 },
+            "Novo Sobradinho": { prodMilho: 102.30766666666666, taxaMilho: 0.08399998753178833, prodSoja: 63.589666666666666, taxaSoja: 0.07423995586230411 },
+            "Ortigueira": { prodMilho: 89.26209993084325, taxaMilho: 0.10905556659098976, prodSoja: 51.704776515151515, taxaSoja: 0.04628193170672074 },
+            "Ourizona": { prodMilho: 84.94745238095243, taxaMilho: 0.1086497433310268, prodSoja: 49.47983333333333, taxaSoja: 0.061479432523192046 },
+            "Ouro Preto": { prodMilho: 72.5380036036036, taxaMilho: 0.14399091905147238, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Ouro Verde do Oeste": { prodMilho: 81.0933636363636, taxaMilho: 0.11286269391721038, prodSoja: 48.343903954802265, taxaSoja: 0.06303146949400966 },
+            "Ouro Verde do Piquiri": { prodMilho: 67.75903703703705, taxaMilho: 0.1198781949663429, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Paiçandu": { prodMilho: 81.73835775862071, taxaMilho: 0.11697015771671161, prodSoja: 25.51096153846155, taxaSoja: 0.0606518405520326 },
+            "Paiquerê": { prodMilho: 80, taxaMilho: 0.11135997779508713, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Palmital": { prodMilho: 91.80131506849325, taxaMilho: 0.09554712169630428, prodSoja: 58.918238095238095, taxaSoja: 0.07425928590094676 },
+            "Palmitópolis": { prodMilho: 87.61196453900708, taxaMilho: 0.07685165676431312, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Palotina": { prodMilho: 84.57649670855817, taxaMilho: 0.1065103163504486, prodSoja: 52.98043777777778, taxaSoja: 0.0737702421598409 },
+            "Panema": { prodMilho: 74.61533333333334, taxaMilho: 0.08876441279966339, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Paraíso do Norte": { prodMilho: 92.4786111111111, taxaMilho: 0.1421900906706514, prodSoja: 46.027777777777786, taxaSoja: 0.06249679882110835 },
+            "Paraná d'Oeste": { prodMilho: 73.94466279069768, taxaMilho: 0.12192000517874138, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Paranacity": { prodMilho: 54.81679761904762, taxaMilho: 0.11761803134786471, prodSoja: 41.80650694444445, taxaSoja: 0.062313559985862924 },
+            "Paranagi": { prodMilho: 66.93032695374798, taxaMilho: 0.08400000021732672, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Paranapoema": { prodMilho: 89.90930282051268, taxaMilho: 0.10909508642492877, prodSoja: 49.575500000000005, taxaSoja: 0.08651588195055253 },
+            "Paranavaí": { prodMilho: 109.125, taxaMilho: 0.14581495680205842, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Passo Liso": { prodMilho: 93.70383420138926, taxaMilho: 0.11978989429172991, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Pato Bragado": { prodMilho: 74.15076666666667, taxaMilho: 0.10774771027190302, prodSoja: 52.802666666666646, taxaSoja: 0.06584356697225383 },
+            "Pato Branco": { prodMilho: 105.66278606965183, taxaMilho: 0.11083722554173427, prodSoja: 58.71466666666665, taxaSoja: 0.06280600387998794 },
+            "Pau d'Alho do Sul": { prodMilho: 79.60857142857142, taxaMilho: 0.13728634729931136, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Paulistânia": { prodMilho: 63.28099298245619, taxaMilho: 0.11310144367624587, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Peabiru": { prodMilho: 95.81761683417079, taxaMilho: 0.1109224491298282, prodSoja: 37.41909090909091, taxaSoja: 0.06132208164361875 },
+            "Perobal": { prodMilho: 100.49834688511386, taxaMilho: 0.12647128440375074, prodSoja: 42.694011904761894, taxaSoja: 0.07672835004749426 },
+            "Pérola": { prodMilho: 70.63579824561403, taxaMilho: 0.11762664212463969, prodSoja: 0.5833333333333334, taxaSoja: 0.09705351089805417 },
+            "Pérola d'Oeste": { prodMilho: 85.64033164983172, taxaMilho: 0.13502683934609713, prodSoja: 33.50646666666667, taxaSoja: 0.04836800534094487 },
+            "Pinhal de São Bento": { prodMilho: 85.33761382113825, taxaMilho: 0.10025654328152753, prodSoja: 58.753541666666656, taxaSoja: 0.08301947460875221 },
+            "Piquirivaí": { prodMilho: 100.52083333333333, taxaMilho: 0.14397358241720198, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Piraí do Sul": { prodMilho: 62.215, taxaMilho: 0.12005305466237944, prodSoja: 68.25, taxaSoja: 0.04399899321221633 },
+            "Pitanga": { prodMilho: 90.85125, taxaMilho: 0.08621937789677837, prodSoja: 60.88, taxaSoja: 0.05580722130847526 },
+            "Pitangueiras": { prodMilho: 91.95291176470587, taxaMilho: 0.1188292706371747, prodSoja: 53.57876666666667, taxaSoja: 0.05478858167081774 },
+            "Planaltina do Paraná": { prodMilho: 87.62719696969698, taxaMilho: 0.12428762644272015, prodSoja: 42.74666666666667, taxaSoja: 0.056667905045836915 },
+            "Planalto": { prodMilho: 98.12164583333335, taxaMilho: 0.12013324095357186, prodSoja: 40.93197058823528, taxaSoja: 0.08321393912757796 },
+            "Porecatu": { prodMilho: 91.65677777777778, taxaMilho: 0.13042124321769533, prodSoja: 51.26322222222223, taxaSoja: 0.06734514899019302 },
+            "Porteira Preta": { prodMilho: 69.23083333333334, taxaMilho: 0.12912000161239873, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Porto Barreiro": { prodMilho: 85.344, taxaMilho: 0.11529648602287919, prodSoja: 60.52607051282053, taxaSoja: 0.051147682516518085 },
+            "Porto Mendes": { prodMilho: 88.07000000000001, taxaMilho: 0.11227204133415399, prodSoja: 57.8785, taxaSoja: 0.06807820798429343 },
+            "Prado Ferreira": { prodMilho: 74.10358333333332, taxaMilho: 0.11572420085334331, prodSoja: 37.70964285714285, taxaSoja: 0.05779854741025138 },
+            "Pranchita": { prodMilho: 183.79842307692303, taxaMilho: 0.10684904059569465, prodSoja: 53.1556736111111, taxaSoja: 0.0671758274640061 },
+            "Presidente Castelo Branco": { prodMilho: 83.25274999999999, taxaMilho: 0.1202104566639327, prodSoja: 44.8527, taxaSoja: 0.06633096864397321 },
+            "Primeiro de Maio": { prodMilho: 92.56649999999999, taxaMilho: 0.1076582833597124, prodSoja: 27.237907960199, taxaSoja: 0.05551854092543609 },
+            "Prudentópolis": { prodMilho: 75.11666666666666, taxaMilho: 0.08399997056161088, prodSoja: 57.27016666666667, taxaSoja: 0.05760063272436666 },
+            "Pulinópolis": { prodMilho: 80, taxaMilho: 0.14159998920203, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Quarto Centenário": { prodMilho: 68.35, taxaMilho: 0.10847282432511789, prodSoja: 55.62090804597702, taxaSoja: 0.05099603426836454 },
+            "Quatiguá": { prodMilho: 88.21000000000001, taxaMilho: 0.1528260933647973, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Quatro Pontes": { prodMilho: 89.04, taxaMilho: 0.10985554199304101, prodSoja: 48.79897222222223, taxaSoja: 0.06017936011422859 },
+            "Quedas do Iguaçu": { prodMilho: 769.2308333333333, taxaMilho: 0.10887840722952635, prodSoja: 60.90674074074073, taxaSoja: 0.05370243534749869 },
+            "Querência do Norte": { prodMilho: 78.20516666666667, taxaMilho: 0.10949635932849694, prodSoja: 39.785999999999994, taxaSoja: 0.04506838321963797 },
+            "Quinta do Sol": { prodMilho: 80.576, taxaMilho: 0.11563857213991995, prodSoja: 46.24395238095238, taxaSoja: 0.06269532919113807 },
+            "Quinzópolis": { prodMilho: 66.03444444444445, taxaMilho: 0.08399999986209018, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Ramilândia": { prodMilho: 79.33999999999999, taxaMilho: 0.10912111899039996, prodSoja: 37.92044444444445, taxaSoja: 0.0546253935337157 },
+            "Rancho Alegre": { prodMilho: 98.20516666666667, taxaMilho: 0.11265472720291847, prodSoja: 47.59935087719298, taxaSoja: 0.054740757866209425 },
+            "Rancho Alegre d'Oeste": { prodMilho: 75.39, taxaMilho: 0.09816074297268579, prodSoja: 55.11991666666667, taxaSoja: 0.07431788795083882 },
+            "Realeza": { prodMilho: 67.52222222222223, taxaMilho: 0.12431311343069573, prodSoja: 48.518969696969705, taxaSoja: 0.07425280158001853 },
+            "Rebouças": { prodMilho: 78.73, taxaMilho: 0.04843476092311106, prodSoja: 42.13660606060605, taxaSoja: 0.051690257777054056 },
+            "Renascença": { prodMilho: 87.5, taxaMilho: 0.11531251531425225, prodSoja: 59.259199999999986, taxaSoja: 0.07603846605603472 },
+            "Reserva": { prodMilho: 80.61555555555555, taxaMilho: 0.14327993824380658, prodSoja: 0.956, taxaSoja: 0.06067200492700431 },
+            "Ribeirão Bonito": { prodMilho: 64.81472222222222, taxaMilho: 0.09046376158276985, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Ribeirão Claro": { prodMilho: 140.62880952380948, taxaMilho: 0.09774838943107039, prodSoja: 59.99166666666667, taxaSoja: 0.07677339213679064 },
+            "Ribeirão do Pinhal": { prodMilho: 79.05, taxaMilho: 0.10465690519923629, prodSoja: 4.411609929078013, taxaSoja: 0.05074353003190693 },
+            "Rio Bom": { prodMilho: 84.44444444444444, taxaMilho: 0.11423333804659165, prodSoja: 51.89776666666667, taxaSoja: 0.05052847602519393 },
+            "Rio Bonito": { prodMilho: 104.40934782608693, taxaMilho: 0.08400000697572621, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Rio Bonito do Iguaçu": { prodMilho: 74.75, taxaMilho: 0.11612570880056741, prodSoja: 65.83958333333334, taxaSoja: 0.06105526930732708 },
+            "Rio Branco do Ivaí": { prodMilho: 65.82, taxaMilho: 0.10747323479203881, prodSoja: 45.65866666666667, taxaSoja: 0.06152379090294652 },
+            "Rio da Prata": { prodMilho: 98.20516666666667, taxaMilho: 0.08400001183495988, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Rolândia": { prodMilho: 104.94761904761904, taxaMilho: 0.11564108912315521, prodSoja: 53.93132954545454, taxaSoja: 0.05434330300947735 },
+            "Roncador": { prodMilho: 87.95616666666668, taxaMilho: 0.09937194122306238, prodSoja: 59.07774074074075, taxaSoja: 0.05907338094583119 },
+            "Rondon": { prodMilho: 65.06, taxaMilho: 0.1016168208158917, prodSoja: 42.47746666666667, taxaSoja: 0.07690097806715948 },
+            "Rosário do Ivaí": { prodMilho: 76.97, taxaMilho: 0.1071446523916945, prodSoja: 59.29, taxaSoja: 0.05920000354603614 },
+            "Sabáudia": { prodMilho: 73.89, taxaMilho: 0.1086902118154129, prodSoja: 55.00159126984126, taxaSoja: 0.057485272584164714 },
+            "Salgado Filho": { prodMilho: 100.76216666666667, taxaMilho: 0.12718766776593296, prodSoja: 55.723749999999995, taxaSoja: 0.07409249021204045 },
+            "Salles de Oliveira": { prodMilho: 79.52, taxaMilho: 0.08400000005898307, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Saltinho do Oeste": { prodMilho: 90.7, taxaMilho: 0.12584000316410385, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Salto do Itararé": { prodMilho: 78.265, taxaMilho: 0.0994390505039832, prodSoja: 53.99183333333334, taxaSoja: 0.0631383331021464 },
+            "Salto do Lontra": { prodMilho: 62.96, taxaMilho: 0.13014031059844733, prodSoja: 59.69755555555557, taxaSoja: 0.07499987037722983 },
+            "Santa Amélia": { prodMilho: 79.21000000000001, taxaMilho: 0.11375778046709742, prodSoja: 55.38220833333333, taxaSoja: 0.08068502051470496 },
+            "Santa Cecília do Pavão": { prodMilho: 72.07, taxaMilho: 0.10105449174494602, prodSoja: 58.062018518518535, taxaSoja: 0.06597639570503235 },
+            "Santa Cruz de Monte Castelo": { prodMilho: 72.67563333333332, taxaMilho: 0.11397680214829305, prodSoja: 44.023981481481464, taxaSoja: 0.07920617252750664 },
+            "Santa Esmeralda": { prodMilho: 104.2537037037037, taxaMilho: 0.11113043063499271, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Santa Fé": { prodMilho: 87.30766666666668, taxaMilho: 0.1244711268824636, prodSoja: 51.90408333333335, taxaSoja: 0.05983129727550695 },
+            "Santa Fé do Pirapó": { prodMilho: 105.96222222222222, taxaMilho: 0.12943025776695627, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Santa Helena": { prodMilho: 74.61541666666668, taxaMilho: 0.1078591747110701, prodSoja: 38.92639024390243, taxaSoja: 0.07316097609984655 },
+            "Santa Inês": { prodMilho: 66.66666666666667, taxaMilho: 0.12818318570311418, prodSoja: 44.8908, taxaSoja: 0.034661860320987566 },
+            "Santa Isabel do Ivaí": { prodMilho: 80.0171111111111, taxaMilho: 0.09875082938121563, prodSoja: 43.39333333333333, taxaSoja: 0.06550988574355572 },
+            "Santa Izabel do Oeste": { prodMilho: 55.069833333333335, taxaMilho: 0.11650831638587153, prodSoja: 57.166000000000004, taxaSoja: 0.06593846801515423 },
+            "Santa Lúcia": { prodMilho: 67.62, taxaMilho: 0.10729824005441428, prodSoja: 57.95278571428572, taxaSoja: 0.05680596654551077 },
+            "Santa Luzia da Alvorada": { prodMilho: 99.46666666666667, taxaMilho: 0.09511148720797208, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Santa Maria do Oeste": { prodMilho: 42.919999999999995, taxaMilho: 0.11283371479423976, prodSoja: 28.313916666666668, taxaSoja: 0.07810509371732959 },
+            "Santa Mariana": { prodMilho: 95.65280303030303, taxaMilho: 0.10993416584244191, prodSoja: 38.93154924242423, taxaSoja: 0.04778112759224402 },
+            "Santa Mônica": { prodMilho: 100, taxaMilho: 0.10598295044563776, prodSoja: 38.759550000000004, taxaSoja: 0.10281931305055166 },
+            "Santa Rita do Oeste": { prodMilho: 259.3077083333333, taxaMilho: 0.09924775758347004, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Santa Tereza do Oeste": { prodMilho: 85.65469444444444, taxaMilho: 0.11340835285037666, prodSoja: 50.90204385964913, taxaSoja: 0.04909205576057417 },
+            "Santa Terezinha de Itaipu": { prodMilho: 68.71791666666667, taxaMilho: 0.11370198673900651, prodSoja: 41.55806589147287, taxaSoja: 0.054638664465477965 },
+            "Santana do Itararé": { prodMilho: 78.57846666666667, taxaMilho: 0.10181291837381239, prodSoja: 52.11000000000001, taxaSoja: 0.05118195369686837 },
+            "Santo Antônio da Platina": { prodMilho: 92.82307692307693, taxaMilho: 0.12243233460006425, prodSoja: 57.56898666666665, taxaSoja: 0.0549437839225153 },
+            "Santo Antônio do Paraíso": { prodMilho: 75.12816666666666, taxaMilho: 0.12448371054220782, prodSoja: 37.038374999999995, taxaSoja: 0.050837389089407076 },
+            "Santo Antônio do Sudoeste": { prodMilho: 87.12333333333333, taxaMilho: 0.11626944671618965, prodSoja: 58.44569791666668, taxaSoja: 0.07480699522924458 },
+            "Santo Inácio": { prodMilho: 91.03500000000001, taxaMilho: 0.1183098997421308, prodSoja: 47.010866666666665, taxaSoja: 0.06873924435895507 },
+            "São Camilo": { prodMilho: 65.83, taxaMilho: 0.1390827712789823, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "São Carlos do Ivaí": { prodMilho: 89.766875, taxaMilho: 0.11213524747712805, prodSoja: 39.15833333333333, taxaSoja: 0.062045416599815786 },
+            "São Clemente": { prodMilho: 87.69233333333334, taxaMilho: 0.10531189219828371, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "São Domingos": { prodMilho: 86.24, taxaMilho: 0.116132462962526, prodSoja: 58.45666666666667, taxaSoja: 0.04799995234458226 },
+            "São Jerônimo da Serra": { prodMilho: 51.89, taxaMilho: 0.12362735744095527, prodSoja: 56.549771929824566, taxaSoja: 0.058643855517621184 },
+            "São João": { prodMilho: 87.05636666666666, taxaMilho: 0.11278671512092571, prodSoja: 49.97241666666666, taxaSoja: 0.07441377902771051 },
+            "São João do Ivaí": { prodMilho: 55.536833333333334, taxaMilho: 0.10486871740700385, prodSoja: 20.970516666666665, taxaSoja: 0.05441618500553529 },
+            "São João do Pinhal": { prodMilho: 83.23, taxaMilho: 0.09949227157533311, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "São João do Triunfo": { prodMilho: 45.269999999999996, taxaMilho: 0.07244378073210708, prodSoja: 53.49683333333334, taxaSoja: 0.052658518050293354 },
+            "São João d'Oeste": { prodMilho: 60.36000000000001, taxaMilho: 0.10114883305031867, prodSoja: 63.589666666666666, taxaSoja: 0.06592005333936676 },
+            "São Joaquim": { prodMilho: 65.18777777777778, taxaMilho: 0.12512001316436452, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "São Jorge do Ivaí": { prodMilho: 99.2, taxaMilho: 0.10718065773554064, prodSoja: 51.3696031746032, taxaSoja: 0.06234733009650895 },
+            "São Jorge do Patrocínio": { prodMilho: 99.71875, taxaMilho: 0.11801465673900383, prodSoja: 42.65875, taxaSoja: 0.07863247971662926 },
+            "São Jorge D'Oeste": { prodMilho: 65, taxaMilho: 0.1299199520305332, prodSoja: 55.38505555555555, taxaSoja: 0.08243503150457851 },
+            "São José das Palmeiras": { prodMilho: 100.1875, taxaMilho: 0.12076172013835282, prodSoja: 55.52209523809524, taxaSoja: 0.0649304931298058 },
+            "São José do Iguaçu": { prodMilho: 70.79827777777778, taxaMilho: 0.08817385431173103, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "São José do Ivaí": { prodMilho: 102.14166666666667, taxaMilho: 0.10023962192185176, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "São Lourenço": { prodMilho: 91.88333333333333, taxaMilho: 0.09046374661833037, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "São Luiz": { prodMilho: 98.67, taxaMilho: 0.10592554014241076, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "São Luiz do Oeste": { prodMilho: 96.76666666666667, taxaMilho: 0.1050837132814435, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "São Manoel do Paraná": { prodMilho: 93.45, taxaMilho: 0.10770777330518977, prodSoja: 42.693999999999996, taxaSoja: 0.10223801771797059 },
+            "São Marcos": { prodMilho: 92.16436666666667, taxaMilho: 0.10959999061712124, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "São Martinho": { prodMilho: 78.63021428571427, taxaMilho: 0.11071037197697149, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "São Miguel": { prodMilho: 95.81666666666666, taxaMilho: 0.10615598318294228, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "São Miguel do Cambui": { prodMilho: 95.85000000000001, taxaMilho: 0.1181053361212125, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "São Miguel do Iguaçu": { prodMilho: 77.92655555555557, taxaMilho: 0.10746546681951048, prodSoja: 43.74105709876542, taxaSoja: 0.06625129231300822 },
+            "São Pedro": { prodMilho: 68.80208333333334, taxaMilho: 0.10128003749815451, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "São Pedro do Iguaçu": { prodMilho: 90.51283333333335, taxaMilho: 0.10424134729632743, prodSoja: 52.686234848484865, taxaSoja: 0.06093385974340407 },
+            "São Pedro do Ivaí": { prodMilho: 77.69233333333334, taxaMilho: 0.10886140448354009, prodSoja: 23.972777777777782, taxaSoja: 0.05596589661234997 },
+            "São Pedro Lopei": { prodMilho: 70.76916666666666, taxaMilho: 0.11924666538475942, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "São Roque": { prodMilho: 95.12816666666666, taxaMilho: 0.09046375875279626, prodSoja: 57.923, taxaSoja: 0.06804205400619744 },
+            "São Sebastião da Amoreira": { prodMilho: 99.75, taxaMilho: 0.1168077441957614, prodSoja: 60.05575490196078, taxaSoja: 0.06359025105295445 },
+            "São Tomé": { prodMilho: 100, taxaMilho: 0.10269601541606108, prodSoja: 45.07791666666667, taxaSoja: 0.12690145488730756 },
+            "Sapopema": { prodMilho: 84.13333333333334, taxaMilho: 0.11113042357874199, prodSoja: 23.00648484848485, taxaSoja: 0.050860503157425074 },
+            "Sarandi": { prodMilho: 100, taxaMilho: 0.11437821037259777, prodSoja: 24.9157619047619, taxaSoja: 0.05236906320671011 },
+            "Saudade do Iguaçu": { prodMilho: 51.383333333333326, taxaMilho: 0.16173715892628757, prodSoja: 67.65, taxaSoja: 0.08436228606396115 },
+            "Sede Alvorada": { prodMilho: 93.475, taxaMilho: 0.08400000420483578, prodSoja: 61.80566666666667, taxaSoja: 0.06618953819447368 },
+            "Sengés": { prodMilho: 66.23333333333333, taxaMilho: 0.08423978186352415, prodSoja: 61.903481481481485, taxaSoja: 0.050242674047425724 },
+            "Serranópolis do Iguaçu": { prodMilho: 100, taxaMilho: 0.1069497082129643, prodSoja: 42.297010416666666, taxaSoja: 0.06943248363159626 },
+            "Serrinha": { prodMilho: 82.8205, taxaMilho: 0.12160002055978651, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Sertaneja": { prodMilho: 84.87183333333334, taxaMilho: 0.11015263018549355, prodSoja: 36.82146153846155, taxaSoja: 0.051640803703433 },
+            "Sertanópolis": { prodMilho: 90.51283333333335, taxaMilho: 0.11647417457615485, prodSoja: 37.54226344086022, taxaSoja: 0.056998438195228804 },
+            "Siqueira Campos": { prodMilho: 50, taxaMilho: 0.1479199467364798, prodSoja: 59.43333333333333, taxaSoja: 0.05335986722660456 },
+            "Sulina": { prodMilho: 71.52201388888889, taxaMilho: 0.11283146021511015, prodSoja: 54.660333333333334, taxaSoja: 0.062308821374178834 },
+            "Tamarana": { prodMilho: 85.55777777777777, taxaMilho: 0.11883614603781535, prodSoja: 59.583333333333336, taxaSoja: 0.037951503710301364 },
+            "Tamboara": { prodMilho: 86.425, taxaMilho: 0.09870413855271964, prodSoja: 41.240249999999996, taxaSoja: 0.032616888071536905 },
+            "Tapejara": { prodMilho: 89.47222222222223, taxaMilho: 0.08399567418828682, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Tapira": { prodMilho: 95.12816666666667, taxaMilho: 0.11560135859792768, prodSoja: 51.243833333333335, taxaSoja: 0.07129382244917488 },
+            "Telêmaco Borba": { prodMilho: 86.89166666666667, taxaMilho: 0.09333330588917363, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Tereza Breda": { prodMilho: 104.31666666666666, taxaMilho: 0.12416016889203436, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Terra Boa": { prodMilho: 93.8, taxaMilho: 0.11752208474742969, prodSoja: 44.90528472222221, taxaSoja: 0.07182892602271053 },
+            "Terra Roxa": { prodMilho: 113.6, taxaMilho: 0.11085651213101229, prodSoja: 52.9431205673759, taxaSoja: 0.06687372734107969 },
+            "Tibagi": { prodMilho: 112.29222222222222, taxaMilho: 0.08421618824866747, prodSoja: 42.949733333333334, taxaSoja: 0.045664107077519465 },
+            "Toledo": { prodMilho: 80.40694444444445, taxaMilho: 0.1095468386611612, prodSoja: 55.37816431924882, taxaSoja: 0.06270468134692382 },
+            "Tomazina": { prodMilho: 102, taxaMilho: 0.11690396351019754, prodSoja: 58.80075, taxaSoja: 0.06150237343985686 },
+            "Três Barras do Paraná": { prodMilho: 103.225, taxaMilho: 0.11315408615733069, prodSoja: 57.780574074074046, taxaSoja: 0.06111228522462794 },
+            "Três Bocas": { prodMilho: 75, taxaMilho: 0.13888000057348454, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Triângulo": { prodMilho: 107, taxaMilho: 0.1255417502374235, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Triolândia": { prodMilho: 106.05, taxaMilho: 0.14667840258630277, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Tuneiras do Oeste": { prodMilho: 113.63333333333334, taxaMilho: 0.11552414693619524, prodSoja: 45.42013333333333, taxaSoja: 0.07656627574402745 },
+            "Tupãssi": { prodMilho: 88.56333333333333, taxaMilho: 0.10246613829059413, prodSoja: 55.7787111111111, taxaSoja: 0.0651566664177117 },
+            "Tupinambá": { prodMilho: 97.10000000000001, taxaMilho: 0.11918665294294528, prodSoja: 56.63, taxaSoja: 0.06848003754576878 },
+            "Ubauna": { prodMilho: 80.25, taxaMilho: 0.08766800115202145, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Ubiratã": { prodMilho: 40.47375, taxaMilho: 0.10455305549347156, prodSoja: 54.69646323529413, taxaSoja: 0.0622520913618593 },
+            "Umuarama": { prodMilho: 56.98125, taxaMilho: 0.10037680862525308, prodSoja: 37.142833333333336, taxaSoja: 0.10075302017528824 },
+            "Uniflor": { prodMilho: 102.6, taxaMilho: 0.1291750087365901, prodSoja: 47.74337777777779, taxaSoja: 0.06571085745171469 },
+            "Uraí": { prodMilho: 90, taxaMilho: 0.11153514745602056, prodSoja: 50.020305555555545, taxaSoja: 0.057250222878839255 },
+            "Vassoural": { prodMilho: 75, taxaMilho: 0.14136001892876346, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Ventania": { prodMilho: 77.75, taxaMilho: 0.1472255795651294, prodSoja: 59.63333333333333, taxaSoja: 0.05181479657116865 },
+            "Vera Cruz do Oeste": { prodMilho: 60, taxaMilho: 0.11024211290400483, prodSoja: 51.98465624999999, taxaSoja: 0.05597244785429638 },
+            "Verê": { prodMilho: 65, taxaMilho: 0.09368927047862584, prodSoja: 55.70116666666667, taxaSoja: 0.06098482925819283 },
+            "Vidigal": { prodMilho: 50, taxaMilho: 0.11848000129491967, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Vila Ipiranga": { prodMilho: 75.3, taxaMilho: 0.10502687577212017, prodSoja: 63.589666666666666, taxaSoja: 0.07423999871194888 },
+            "Vila Nova": { prodMilho: 100, taxaMilho: 0.11499901456037236, prodSoja: 63.58966666666666, taxaSoja: 0.07423998767518762 },
+            "Virmond": { prodMilho: 100, taxaMilho: 0.10831787140697924, prodSoja: 63.41999999999998, taxaSoja: 0.055519979447400995 },
+            "Vista Alegre": { prodMilho: 100, taxaMilho: 0.08400000187029591, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Vitorino": { prodMilho: 132.2, taxaMilho: 0.09406259231557684, prodSoja: 60.34466666666666, taxaSoja: 0.08029576016889653 },
+            "Warta": { prodMilho: 67.11, taxaMilho: 0.08291305835645707, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Wenceslau Braz": { prodMilho: 116.66666666666667, taxaMilho: 0.1161287943860981, prodSoja: 60.52742592592592, taxaSoja: 0.0589045463263898 },
+            "Xambrê": { prodMilho: 108.33333333333333, taxaMilho: 0.11600007272878396, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Xaxim": { prodMilho: 77.03999999999999, taxaMilho: 0.09961193121770213, prodSoja: 51.4, taxaSoja: 0.0647 },
+            "Yolanda": { prodMilho: 88.73, taxaMilho: 0.09338035600172222, prodSoja: 51.4, taxaSoja: 0.0647 }
+        };
+
         // Configurações iniciais
         let currentScreen = 1;
         const totalScreens = 6;
@@ -1036,24 +1517,24 @@
                 icon: "fas fa-corn",
                 color: "var(--verde)",
                 mediaIBGE: 90,
-                taxaPremio: 0.14,
                 exemploProdutividade: "90",
                 exemploCusto: "2500",
                 exemploSaca: "70",
                 sugestaoMin: 70,
-                sugestaoMax: 110
+                sugestaoMax: 110,
+                coberturas: [65, 70] // 65% e 70% para Milho Safrinha
             },
             soja: {
                 name: "Soja",
                 icon: "fas fa-seedling",
                 color: "var(--laranja)",
                 mediaIBGE: 54,
-                taxaPremio: 0.0756,
                 exemploProdutividade: "70",
                 exemploCusto: "4000",
                 exemploSaca: "130",
                 sugestaoMin: 50,
-                sugestaoMax: 80
+                sugestaoMax: 80,
+                coberturas: [65, 70, 75] // 65%, 70% e 75% para Soja
             }
         };
         
@@ -1064,6 +1545,7 @@
             cidade: "",
             produtividadeInformada: 0,
             produtividadeCalculo: 0,
+            nivelCobertura: 0,
             areaAlqueires: 0,
             areaHectares: 0,
             custoProducaoHa: 0,
@@ -1074,14 +1556,17 @@
             premioLiquido: 0,
             premioPorAlqueire: 0,
             premioPorHectare: 0,
-            valorSeguradoTotal: 0
+            valorSeguradoTotal: 0,
+            taxaBase: 0,
+            taxaAplicada: 0,
+            produtividadeSeguradaCidade: 0, // Nova propriedade
+            tetoProdutividade: 0 // Nova propriedade
         };
         
         // Parâmetros fixos comuns
-        const NIVEL_COBERTURA = 0.65;
+        const BENEFICIO_RATING = 0.15;
         const SUBSIDIO_PSR = 0.20;
         const DESCONTO_RATING = 0.25;
-        const BENEFICIO_RATING = 0.15;
         
         // Funções de navegação
         function updateSteps() {
@@ -1107,9 +1592,32 @@
             updateSteps();
             
             // Atualizar conteúdo específico da tela
-            if (screenNumber === 3 && currentCalculation.selectedCrop) {
+            if (screenNumber === 1) {
+                populateCitySelect();
+            } else if (screenNumber === 3 && currentCalculation.selectedCrop) {
                 updateCropParameters();
             }
+            
+            // Scroll para topo em iOS
+            setTimeout(() => window.scrollTo(0, 0), 100);
+        }
+        
+        // ============ FUNÇÃO PARA POPULAR SELECT DE CIDADES ============
+        function populateCitySelect() {
+            const citySelect = document.getElementById('cidade');
+            if (!citySelect) return;
+            
+            // Limpar e adicionar opção padrão
+            citySelect.innerHTML = '<option value="">-- Selecione uma cidade --</option>';
+            
+            // Adicionar cidades em ordem alfabética
+            const cities = Object.keys(tabelaMunicipios).sort();
+            cities.forEach(city => {
+                const option = document.createElement('option');
+                option.value = city;
+                option.textContent = city;
+                citySelect.appendChild(option);
+            });
         }
         
         // Seleção da cultura
@@ -1131,10 +1639,103 @@
             document.getElementById('custoHa').placeholder = `Ex: ${crop.exemploCusto}`;
             document.getElementById('valorSaca').placeholder = `Ex: ${crop.exemploSaca}`;
             
+            // Resetar cobertura quando mudar cultura
+            document.getElementById('nivelCobertura').value = '';
+            document.getElementById('coverageSection').classList.add('hidden');
+            document.getElementById('sacasSeguradasPreview').style.display = 'none';
+            
             // Feedback tátil para iOS
             if (window.navigator.vibrate) {
                 window.navigator.vibrate(50);
             }
+        }
+        
+        // Exibir opções de cobertura após informar produtividade
+        function showCoverageOptions() {
+            const prodHaActive = document.getElementById('produtividade-ha').classList.contains('active');
+            let produtividade = 0;
+            
+            if (prodHaActive) {
+                produtividade = parseFloat(document.getElementById('produtividadeHa').value);
+            } else {
+                produtividade = parseFloat(document.getElementById('produtividadeAlq').value);
+                if (produtividade > 0) {
+                    produtividade = produtividade / ALC_POR_HA;
+                }
+            }
+            
+            if (produtividade <= 0 || !currentCalculation.selectedCrop || !currentCalculation.cidade) {
+                document.getElementById('coverageSection').classList.add('hidden');
+                return;
+            }
+            
+            // Mostrar seção de cobertura
+            document.getElementById('coverageSection').classList.remove('hidden');
+            
+            // Atualizar select de cobertura com opções da cultura
+            const crop = crops[currentCalculation.selectedCrop];
+            const coverageSelect = document.getElementById('nivelCobertura');
+            coverageSelect.innerHTML = '<option value="">-- Selecione o nível de cobertura --</option>';
+            
+            crop.coberturas.forEach(coverage => {
+                const option = document.createElement('option');
+                option.value = coverage;
+                option.textContent = `${coverage}% de Cobertura`;
+                coverageSelect.appendChild(option);
+            });
+            
+            // Resetar display de preview
+            document.getElementById('sacasSeguradasPreview').style.display = 'none';
+        }
+        
+        // Atualizar display de sacas seguradas quando mudar cobertura
+        function updateCoverageDisplay() {
+            const coverageSelect = document.getElementById('nivelCobertura');
+            const coverage = parseInt(coverageSelect.value);
+            
+            if (!coverage || !currentCalculation.cidade || !currentCalculation.selectedCrop) {
+                document.getElementById('sacasSeguradasPreview').style.display = 'none';
+                return;
+            }
+            
+            // Obter dados da cidade
+            const cidadeData = tabelaMunicipios[currentCalculation.cidade];
+            if (!cidadeData) return;
+            
+            // Calcular produtividade atual
+            const prodHaActive = document.getElementById('produtividade-ha').classList.contains('active');
+            let produtividade = 0;
+            
+            if (prodHaActive) {
+                produtividade = parseFloat(document.getElementById('produtividadeHa').value);
+            } else {
+                produtividade = parseFloat(document.getElementById('produtividadeAlq').value);
+                if (produtividade > 0) {
+                    produtividade = produtividade / ALC_POR_HA;
+                }
+            }
+            
+            if (produtividade <= 0) return;
+            
+            // Obter produtividade segurada da cidade
+            const prodSeguradaCidade = currentCalculation.selectedCrop === 'milho' 
+                ? cidadeData.prodMilho 
+                : cidadeData.prodSoja;
+            
+            // Calcular teto (Rating 65)
+            const tetoProdutividade = prodSeguradaCidade * (1 + BENEFICIO_RATING);
+            
+            // Validar produtividade (aplicar teto se necessário)
+            const produtividadeParaCalculo = Math.min(produtividade, tetoProdutividade);
+            
+            // Calcular sacas seguradas
+            const sacasHa = (produtividadeParaCalculo * coverage) / 100;
+            const sacasAlq = sacasHa * ALC_POR_HA;
+            
+            // Exibir
+            document.getElementById('preview-sacas-ha').textContent = formatNumber(sacasHa, 1);
+            document.getElementById('preview-sacas-alq').textContent = formatNumber(sacasAlq, 1);
+            document.getElementById('sacasSeguradasPreview').style.display = 'block';
         }
         
         // Função para alternar abas (compatível com iOS)
@@ -1164,9 +1765,24 @@
             const crop = crops[currentCalculation.selectedCrop];
             const cropParams = document.getElementById('cropParams');
             
-            if (!crop) return;
+            if (!crop || !currentCalculation.cidade) return;
             
-            const tetoProdutividade = crop.mediaIBGE * (1 + BENEFICIO_RATING);
+            // Obter dados da cidade
+            const cidadeData = tabelaMunicipios[currentCalculation.cidade];
+            if (!cidadeData) return;
+            
+            // Obter produtividade segurada da cidade
+            const prodSeguradaCidade = currentCalculation.selectedCrop === 'milho' 
+                ? cidadeData.prodMilho 
+                : cidadeData.prodSoja;
+            
+            // Obter taxa base da cidade
+            const taxaBase = currentCalculation.selectedCrop === 'milho' 
+                ? cidadeData.taxaMilho 
+                : cidadeData.taxaSoja;
+            
+            // Calcular teto (Rating 65)
+            const tetoProdutividade = prodSeguradaCidade * (1 + BENEFICIO_RATING);
             
             cropParams.className = 'crop-params';
             if (currentCalculation.selectedCrop === 'soja') {
@@ -1175,16 +1791,16 @@
             
             cropParams.innerHTML = `
                 <i class="fas fa-info-circle"></i> 
-                <strong>Parâmetros para ${crop.name}:</strong><br>
-                • Média IBGE: ${crop.mediaIBGE} sacas/hectare<br>
-                • Benefício Rating: +15% (teto: ${tetoProdutividade.toFixed(1)} sacas/ha)<br>
-                • Taxa de Seguro: ${(crop.taxaPremio * 100).toFixed(2)}%<br>
+                <strong>Parâmetros para ${crop.name} em ${currentCalculation.cidade}:</strong><br>
+                • Produtividade Segurada da Cidade: ${formatNumber(prodSeguradaCidade, 1)} sacas/hectare<br>
+                • Benefício Rating (+15%): ${formatNumber(tetoProdutividade, 1)} sacas/ha (teto)<br>
+                • Taxa Base: ${(taxaBase * 100).toFixed(2)}%<br>
                 • Sugestão de preenchimento: ${crop.sugestaoMin}-${crop.sugestaoMax} sacas/ha
             `;
             
-            // Atualizar benefício na tela de resultados
-            document.getElementById('benefit-produtividade').textContent = 
-                `15% (${crop.mediaIBGE} → ${tetoProdutividade.toFixed(1)} sacas/ha)`;
+            currentCalculation.taxaBase = taxaBase;
+            currentCalculation.produtividadeSeguradaCidade = prodSeguradaCidade;
+            currentCalculation.tetoProdutividade = tetoProdutividade;
         }
         
         // Validação e navegação
@@ -1200,7 +1816,11 @@
                     document.getElementById('nomeCompleto').focus();
                     isValid = false;
                 } else if (!cidade) {
-                    alert("Por favor, informe a cidade do plantio.");
+                    alert("Por favor, selecione a cidade do plantio.");
+                    document.getElementById('cidade').focus();
+                    isValid = false;
+                } else if (!tabelaMunicipios[cidade]) {
+                    alert("Cidade não encontrada na base de dados. Por favor, selecione outra cidade.");
                     document.getElementById('cidade').focus();
                     isValid = false;
                 } else {
@@ -1234,6 +1854,16 @@
                     } else {
                         produtividade = produtividade / ALC_POR_HA;
                     }
+                }
+                
+                // Validar nível de cobertura
+                const nivelCobertura = parseInt(document.getElementById('nivelCobertura').value);
+                if (!nivelCobertura || nivelCobertura <= 0) {
+                    alert("Por favor, selecione um nível de cobertura.");
+                    document.getElementById('nivelCobertura').focus();
+                    isValid = false;
+                } else {
+                    currentCalculation.nivelCobertura = nivelCobertura;
                 }
                 
                 if (isValid) {
@@ -1361,19 +1991,45 @@
             return value.toFixed(decimals).replace('.', ',');
         }
         
-        // Cálculo principal
+        // ============ CÁLCULO PRINCIPAL COM NOVAS REGRAS ============
         function calcularResultados() {
             const crop = crops[currentCalculation.selectedCrop];
-            if (!crop) return;
+            if (!crop || !currentCalculation.taxaBase || !currentCalculation.cidade) return;
             
-            // Calcular teto de produtividade
-            const TETO_PRODUTIVIDADE = crop.mediaIBGE * (1 + BENEFICIO_RATING);
+            // Obter dados da cidade
+            const cidadeData = tabelaMunicipios[currentCalculation.cidade];
+            if (!cidadeData) return;
             
-            // Determinar produtividade para cálculo
-            const produtividadeParaCalculo = Math.min(currentCalculation.produtividadeInformada, TETO_PRODUTIVIDADE);
+            // Obter produtividade segurada da cidade
+            const prodSeguradaCidade = currentCalculation.selectedCrop === 'milho' 
+                ? cidadeData.prodMilho 
+                : cidadeData.prodSoja;
+            
+            // ============ TETO DE PRODUTIVIDADE (Rating 65) ============
+            const tetoProdutividade = prodSeguradaCidade * (1 + BENEFICIO_RATING);
+            
+            // Validar produtividade (aplicar teto se necessário)
+            const produtividadeParaCalculo = Math.min(currentCalculation.produtividadeInformada, tetoProdutividade);
+            
+            // ============ AJUSTE DE TAXA CONFORME NÍVEL DE COBERTURA ============
+            let taxaAplicada = currentCalculation.taxaBase;
+            const cobertura = currentCalculation.nivelCobertura;
+            
+            if (cobertura === 65) {
+                // Cobertura 65%: desconto de 5%
+                taxaAplicada = currentCalculation.taxaBase * 0.95;
+            } else if (cobertura === 70) {
+                // Cobertura 70%: taxa igual à base
+                taxaAplicada = currentCalculation.taxaBase;
+            } else if (cobertura === 75) {
+                // Cobertura 75%: acréscimo de 5%
+                taxaAplicada = currentCalculation.taxaBase * 1.05;
+            }
+            
+            currentCalculation.taxaAplicada = taxaAplicada;
             
             // Calcular produção segurada
-            const produtividadeSegurada = produtividadeParaCalculo * NIVEL_COBERTURA;
+            const produtividadeSegurada = produtividadeParaCalculo * (cobertura / 100);
             
             // Calcular sacas por área
             const sacasPorHectare = produtividadeSegurada;
@@ -1383,12 +2039,10 @@
             // Calcular valor segurado
             const valorSeguradoTotal = totalSacas * currentCalculation.valorSaca;
             
-            // Cálculo do prêmio
-            const premioBruto = valorSeguradoTotal * crop.taxaPremio;
-            const valorSubsidio = premioBruto * SUBSIDIO_PSR;
-            const premioAposSubsidio = premioBruto - valorSubsidio;
-            const valorDescontoRating = premioAposSubsidio * DESCONTO_RATING;
-            const premioLiquido = premioAposSubsidio - valorDescontoRating;
+            // Cálculo do prêmio com taxa dinâmica
+            const premioBruto = valorSeguradoTotal * taxaAplicada;
+            const valorDescontoRating = premioBruto * DESCONTO_RATING;
+            const premioLiquido = premioBruto - valorDescontoRating;
             
             // Cálculos por área
             const premioPorHectare = premioLiquido / currentCalculation.areaHectares;
@@ -1417,6 +2071,9 @@
             document.getElementById('res-calculo-valor').textContent = 
                 formatNumber(totalSacas, 0) + ' sacas × ' + formatCurrency(currentCalculation.valorSaca);
             
+            // Atualizar benefícios
+            document.getElementById('benefit-cobertura').textContent = `${cobertura}% da produção`;
+            
             // Aplicar cor da cultura na tela de resultados
             const resultScreen = document.getElementById('screen6');
             resultScreen.className = 'screen result-screen';
@@ -1424,20 +2081,24 @@
                 resultScreen.classList.add('soja');
             }
             
-            // Mostrar benefício extra se aplicável
-            if (currentCalculation.produtividadeInformada > TETO_PRODUTIVIDADE) {
+            // Mostrar benefício extra se aplicável (produtividade maior que o teto)
+            if (currentCalculation.produtividadeInformada > tetoProdutividade) {
                 const beneficiosDiv = document.querySelector('.benefit-box');
                 // Remover benefício extra anterior se existir
-                const existingExtra = beneficiosDiv.querySelector('.benefit-item:last-child[style*="color: #2e7d32"]');
-                if (existingExtra) {
-                    existingExtra.remove();
+                const existingExtra = beneficiosDiv.querySelectorAll('.benefit-item');
+                if (existingExtra.length > 3) {
+                    for (let i = 3; i < existingExtra.length; i++) {
+                        if (existingExtra[i].classList.contains('extra-benefit')) {
+                            existingExtra[i].remove();
+                        }
+                    }
                 }
                 
                 const extraInfo = document.createElement('div');
-                extraInfo.className = 'benefit-item';
+                extraInfo.className = 'benefit-item extra-benefit';
                 extraInfo.style.color = '#2e7d32';
                 extraInfo.style.fontWeight = '600';
-                extraInfo.innerHTML = `<span>Seu rating evitou redução de:</span><span>${formatNumber(currentCalculation.produtividadeInformada - TETO_PRODUTIVIDADE, 1)} sacas/ha</span>`;
+                extraInfo.innerHTML = `<span>Seu rating evitou redução de:</span><span>${formatNumber(currentCalculation.produtividadeInformada - tetoProdutividade, 1)} sacas/ha</span>`;
                 beneficiosDiv.appendChild(extraInfo);
             }
         }
@@ -1454,6 +2115,7 @@
             document.getElementById('custoHa').value = '';
             document.getElementById('custoAlq').value = '';
             document.getElementById('valorSaca').value = '';
+            document.getElementById('nivelCobertura').value = '';
             
             // Resetar seleção de cultura
             document.querySelectorAll('.crop-option').forEach(option => {
@@ -1471,14 +2133,18 @@
             document.querySelector('.tab-button').classList.add('active');
             document.querySelector('.tab-content').classList.add('active');
             
+            // Ocultar seção de cobertura
+            document.getElementById('coverageSection').classList.add('hidden');
+            document.getElementById('sacasSeguradasPreview').style.display = 'none';
+            
             // Remover informações extras
             const beneficiosDiv = document.querySelector('.benefit-box');
             const items = beneficiosDiv.querySelectorAll('.benefit-item');
-            if (items.length > 3) {
-                for (let i = 3; i < items.length; i++) {
-                    items[i].remove();
-                }
-            }
+            const extraItems = beneficiosDiv.querySelectorAll('.extra-benefit');
+            extraItems.forEach(item => item.remove());
+            
+            // Resetar benefício de cobertura
+            document.getElementById('benefit-cobertura').textContent = '65% da produção';
             
             // Resetar dados
             currentCalculation = {
@@ -1487,6 +2153,7 @@
                 cidade: "",
                 produtividadeInformada: 0,
                 produtividadeCalculo: 0,
+                nivelCobertura: 0,
                 areaAlqueires: 0,
                 areaHectares: 0,
                 custoProducaoHa: 0,
@@ -1497,7 +2164,11 @@
                 premioLiquido: 0,
                 premioPorAlqueire: 0,
                 premioPorHectare: 0,
-                valorSeguradoTotal: 0
+                valorSeguradoTotal: 0,
+                taxaBase: 0,
+                taxaAplicada: 0,
+                produtividadeSeguradaCidade: 0,
+                tetoProdutividade: 0
             };
             
             // Voltar para início
@@ -1522,6 +2193,7 @@
                            `*Dados Informados:*%0A` +
                            `Cultura: ${crop.name}%0A` +
                            `Produtividade: ${formatNumber(currentCalculation.produtividadeInformada, 1)} sacas/ha%0A` +
+                           `Nível de Cobertura: ${currentCalculation.nivelCobertura}%%0A` +
                            `Área: ${formatNumber(currentCalculation.areaAlqueires, 2)} alq (${formatNumber(currentCalculation.areaHectares, 2)} ha)%0A` +
                            `Custo: ${formatCurrency(currentCalculation.custoProducaoHa)}/ha%0A` +
                            `Valor da Saca: ${formatCurrency(currentCalculation.valorSaca)}%0A%0A` +
@@ -1529,12 +2201,14 @@
                            `Sacas Seguradas: ${formatNumber(currentCalculation.totalSacas, 0)} sacas%0A` +
                            `(${formatNumber(currentCalculation.sacasPorAlqueire, 1)}/alq | ${formatNumber(currentCalculation.sacasPorHectare, 1)}/ha)%0A` +
                            `Valor Segurado: ${formatCurrency(currentCalculation.valorSeguradoTotal)}%0A` +
+                           `Taxa Base: ${(currentCalculation.taxaBase * 100).toFixed(2)}%%0A` +
+                           `Taxa Aplicada (${currentCalculation.nivelCobertura}% cob.): ${(currentCalculation.taxaAplicada * 100).toFixed(2)}%%0A` +
                            `Prêmio Líquido: ${formatCurrency(currentCalculation.premioLiquido)}%0A` +
                            `(${formatCurrency(currentCalculation.premioPorAlqueire)}/alq | ${formatCurrency(currentCalculation.premioPorHectare)}/ha)%0A%0A` +
                            `*Benefícios Rating 65:*%0A` +
                            `✓ 25% desconto na taxa%0A` +
                            `✓ +15% produtividade base%0A` +
-                           `✓ 65% cobertura da produção%0A%0A` +
+                           `✓ ${currentCalculation.nivelCobertura}% cobertura da produção%0A%0A` +
                            `_Gerado em ${new Date().toLocaleDateString('pt-BR')}_`;
             
             // Abrir WhatsApp
@@ -1574,6 +2248,7 @@
             
             // Inicializar
             updateSteps();
+            populateCitySelect(); // Carregar cidades no select
             
             // Forçar redimensionamento para evitar bugs visuais no iOS
             setTimeout(() => {
